@@ -1,96 +1,94 @@
-# Application Architecture
+# Arquitetura da Aplicação
 
-## 1. Overview
+## 1. Visão Geral
 
-The application is divided into four main responsibilities:
+A aplicação é dividida em quatro responsabilidades principais:
 
-- React 18 handles the user interface and client-side state.
-- Laravel 11 handles authentication, validation and business rules.
-- PostgreSQL stores the authoritative application state and enforces data integrity.
-- Node.js with `ws` distributes real-time updates to connected clients.
+- O React 18 gerencia a interface do usuário e o estado no lado do cliente.
+- O Laravel 11 gerencia a autenticação, a validação e as regras de negócio.
+- O PostgreSQL armazena o estado oficial da aplicação e garante a integridade dos dados.
+- O Node.js com a biblioteca `ws` distribui atualizações em tempo real para os clientes conectados.
 
-The main architectural principle is that WebSocket communication does not replace the HTTP API or the database as the source of truth.
+O princípio arquitetural fundamental é que a comunicação via WebSocket não substitui a API HTTP nem o banco de dados como fonte da verdade.
 
-A vote is first validated and persisted. Only after a successful database operation is the new result propagated to connected clients.
+Um voto é primeiramente validado e persistido. Somente após uma operação bem-sucedida no banco de dados é que o novo resultado é propagado para os clientes conectados.
 
-## 2. High-level Architecture
+## 2. Arquitetura de Alto Nível
 
 ```text
 React
-  |
-  | HTTP
-  v
+| 
+| HTTP
+v
 Laravel
-  |
-  | authentication
-  | validation
-  | business rules
-  v
+| 
+| autenticação
+| validação
+| regras de negócio
+v
 PostgreSQL
-  |
-  | successful persistence
-  v
+| 
+| persistência bem-sucedida
+v
 Laravel
-  |
-  | internal notification
-  v
+| 
+| notificação interna
+v
 Node.js + ws
-  |
-  | poll-specific broadcast
-  v
-Connected React clients
+| 
+| broadcast específico da enquete
+v
+Clientes React conectados
 ```
 
-### Responsibilities
+### Responsabilidades
 
 #### React
 
-Responsible for:
+Responsável por:
 
-- rendering the poll wall;
-- poll creation interface;
-- voting interaction;
-- result visualization;
-- loading and error states;
-- WebSocket connection state;
-- reconnecting and synchronizing state.
+- renderizar o painel de enquetes;
+- interface de criação de enquetes;
+- interação de votação;
+- visualização de resultados;
+- estados de carregamento e erro;
+- estado da conexão WebSocket;
+- reconexão e sincronização de estado.
 
 #### Laravel
 
-Responsible for:
+Responsável por:
 
-- guest authentication through Sanctum;
-- API endpoints;
-- request validation;
-- poll creation;
-- voting rules;
-- duplicate vote handling;
-- poll closing rules;
-- calculating poll results.
+- autenticação de visitantes via Sanctum;
+- endpoints da API;
+- validação de requisições;
+- criação de enquetes;
+- regras de votação;
+- tratamento de votos duplicados;
+- regras de encerramento de enquetes;
+- cálculo dos resultados das enquetes.
 
 #### PostgreSQL
 
-Responsible for:
+Responsável por:
 
-- persistent application state;
-- relationships between users, polls, options and votes;
-- enforcing critical data invariants.
+- estado persistente da aplicação;
+- relacionamentos entre usuários, enquetes, opções e votos;
+- garantia de invariantes críticas de dados.
 
 #### Node.js + ws
 
-Responsible for:
+Responsável por:
 
-- WebSocket connections;
-- poll subscriptions;
-- broadcasting result changes;
-- reconnect-compatible communication;
-- detecting dead connections.
+- conexões WebSocket;
+- assinaturas de enquetes;
+- broadcast de alterações nos resultados;
+- comunicação compatível com reconexão;
+- detecção de conexões inativas.
 
-## 3. Repository Structure
+## 3. Estrutura do Repositório
 
-The project uses a monorepository because the challenge contains three applications that must work together but are still part of one small product.
-
-```text
+O projeto utiliza um monorepositório, pois o desafio envolve três aplicações que devem funcionar em conjunto, mas que fazem parte de um único produto de pequeno porte. ```text
 fantasy-draft-test/
 ├── backend/
 ├── frontend/
@@ -100,11 +98,11 @@ fantasy-draft-test/
 └── .gitignore
 ```
 
-This keeps local setup and evaluation simple while preserving clear responsibilities between applications.
+Isso mantém a configuração e a avaliação locais simples, preservando responsabilidades claras entre as aplicações.
 
-## 4. Domain Model
+## 4. Modelo de Domínio
 
-The initial domain contains four entities:
+O domínio inicial contém quatro entidades:
 
 ```text
 User
@@ -115,393 +113,390 @@ Vote
 
 ### User
 
-Represents the technical identity of a participant.
+Representa a identidade técnica de um participante.
 
-The challenge does not require traditional login or registration, so users are created automatically as guests.
+O desafio não exige login ou cadastro tradicionais; portanto, os usuários são criados automaticamente como convidados (*guests*).
 
-A user can:
+Um usuário pode:
 
-- create many polls;
-- vote in many polls.
+- criar várias enquetes;
+- votar em várias enquetes.
 
 ### Poll
 
-Represents a poll created by a user.
+Representa uma enquete criada por um usuário.
 
-Main attributes:
+Principais atributos:
 
-- integer id;
-- creator;
-- question;
-- optional closing time;
-- timestamps.
+- ID inteiro;
+- criador;
+- pergunta;
+- horário de encerramento opcional;
+- *timestamps* (marcas de tempo).
 
-A poll:
+Uma enquete:
 
-- belongs to one creator;
-- contains many options;
-- contains many votes.
+- pertence a um criador;
+- contém várias opções;
+- contém vários votos.
 
 ### PollOption
 
-Represents one possible answer.
+Representa uma possível resposta.
 
-Main attributes:
+Principais atributos:
 
-- integer id;
-- poll id;
-- label;
-- position;
-- timestamps.
+- ID inteiro;
+- ID da enquete;
+- rótulo (*label*);
+- posição;
+- *timestamps*.
 
 ### Vote
 
-Represents one user's choice in one poll.
+Representa a escolha de um usuário em uma enquete.
 
-Main attributes:
+Principais atributos:
 
-- integer id;
-- poll id;
-- poll option id;
-- user id;
-- creation timestamp.
+- ID inteiro;
+- ID da enquete;
+- ID da opção da enquete;
+- ID do usuário;
+- *timestamp* de criação.
 
-## 5. Data Integrity
+## 5. Integridade de Dados
 
-One of the most important business rules is:
+Uma das regras de negócio mais importantes é:
 
-> one user can vote only once in the same poll.
+> um usuário pode votar apenas uma vez na mesma enquete.
 
-Application validation alone is not enough because two concurrent requests could both pass an existence check before either insert is completed.
+A validação na aplicação, por si só, não é suficiente, pois duas requisições simultâneas poderiam passar na verificação de existência antes que qualquer uma das inserções fosse concluída.
 
-For that reason, PostgreSQL will enforce:
+Por esse motivo, o PostgreSQL garantirá a restrição:
 
 ```text
 UNIQUE (poll_id, user_id)
 ```
 
-The application can still check for an existing vote to return a clear response, but the database remains the final integrity guarantee.
+A aplicação ainda pode verificar a existência de um voto para retornar uma resposta clara, mas o banco de dados permanece como a garantia final de integridade.
 
-The backend must also verify that the selected option belongs to the poll receiving the vote.
+O *backend* também deve verificar se a opção selecionada pertence à enquete que está recebendo o voto.
 
-## 6. Guest Authentication
+## 6. Autenticação de Convidado
 
-The challenge requires poll routes to use:
+O desafio exige que as rotas de enquete utilizem:
 
 ```text
 auth:sanctum
 ```
 
-while explicitly stating that login and registration are not required.
+ao mesmo tempo em que estabelece explicitamente que login e cadastro não são necessários.
 
-The application therefore uses an automatic guest identity.
+Portanto, a aplicação utiliza uma identidade de convidado automática.
 
-### Guest bootstrap flow
+### Fluxo de inicialização do convidado
 
 ```text
-React starts
-     |
-     v
-request CSRF cookie
-     |
-     v
+React inicia
+| 
+v
+solicita cookie CSRF
+| 
+v
 POST /api/guest-session
-     |
-     +---- authenticated session exists
-     |             |
-     |             v
-     |         reuse user
-     |
-     +---- no authenticated session
-                   |
-                   v
-             create guest user
-                   |
-                   v
-           authenticate session
+| 
++---- existe sessão autenticada
+| | 
+| v
+| reutilizar usuário
+| 
++---- nenhuma sessão autenticada
+| 
+v
+criar usuário convidado
+| 
+v
+autenticar sessão
 ```
 
-After this bootstrap, poll routes can remain protected with `auth:sanctum`.
+Após essa inicialização, as rotas de enquetes podem permanecer protegidas com `auth:sanctum`.
 
-This provides a technical identity without introducing a login or registration experience that was not requested by the challenge.
+Isso fornece uma identidade técnica sem introduzir uma experiência de login ou cadastro que não foi solicitada pelo desafio.
 
-### Limitation
+### Limitação
 
-If the user removes browser session data, the application cannot guarantee that the same physical person will be recognized again.
+Se o usuário remover os dados de sessão do navegador, a aplicação não poderá garantir que a mesma pessoa física será reconhecida novamente.
 
-A stronger guarantee would require a persistent real-world identity, which is outside the scope of the challenge.
+Uma garantia mais robusta exigiria uma identidade persistente do mundo real, o que está fora do escopo do desafio.
 
-The rule implemented by this project is therefore one vote per authenticated guest identity per poll.
+Portanto, a regra implementada por este projeto é: um voto por identidade de convidado autenticado, por enquete.
 
-## 7. Poll Creation
+## 7. Criação de Enquete
 
-Creating a poll also creates all of its options.
+A criação de uma enquete também cria todas as suas opções.
 
-These operations form one logical unit and should run inside a database transaction.
+Essas operações formam uma unidade lógica e devem ser executadas dentro de uma transação de banco de dados.
 
 ```text
-create poll
-    |
-create options
-    |
-all operations succeed?
-    |
-  yes ---> commit
-  no  ---> rollback
+criar enquete
+|
+criar opções
+|
+todas as operações bem-sucedidas? 
+| 
+sim ---> commit
+não ---> rollback
 ```
 
-This prevents an incomplete poll from being persisted if option creation fails.
+Isso evita que uma enquete incompleta seja persistida caso a criação de opções falhe.
 
-## 8. Voting Flow
+## 8. Fluxo de Votação
 
-A vote follows this path:
+Um voto segue este caminho:
 
 ```text
 POST /api/polls/{poll}/votes
-            |
-            v
-Sanctum authentication
-            |
-            v
-request validation
-            |
-            v
-check poll state
-            |
-            v
-check option belongs to poll
-            |
-            v
-check previous vote
-            |
-            v
-persist vote
-            |
-            v
-database commit
-            |
-            v
-calculate current results
-            |
-            v
-notify real-time service
+| 
+v
+Autenticação via Sanctum
+| 
+v
+Validação da requisição
+| 
+v
+Verificação do estado da enquete
+| 
+v
+Verificação se a opção pertence à enquete
+| 
+v
+Verificação de voto anterior
+| 
+v
+Persistência do voto
+| 
+v
+Commit no banco de dados
+| 
+v
+Cálculo dos resultados atuais
+| 
+v
+Notificação do serviço em tempo real
 ```
 
-A WebSocket delivery failure must not roll back a vote that has already been successfully persisted.
+Uma falha na entrega via WebSocket não deve desfazer (rollback) um voto que já foi persistido com sucesso.
 
-## 9. HTTP and WebSocket Responsibilities
+## 9. Responsabilidades de HTTP e WebSocket
 
-HTTP is used for commands and authoritative state retrieval.
+O HTTP é utilizado para comandos e para a obtenção do estado oficial (autoritativo).
 
-Examples:
+Exemplos:
 
-- create poll;
-- list polls;
-- load poll;
-- submit vote.
+- criar enquete;
+- listar enquetes;
+- carregar enquete;
+- enviar voto.
 
-WebSocket is used to notify connected clients about state changes.
+O WebSocket é utilizado para notificar clientes conectados sobre mudanças de estado.
 
-This keeps business rules inside Laravel instead of duplicating them in the Node.js server.
+Isso mantém as regras de negócio dentro do Laravel, em vez de duplicá-las no servidor Node.js.
 
-## 10. Real-time Subscriptions
+## 10. Assinaturas em Tempo Real
 
-A connected client subscribes only to the poll currently being viewed.
+Um cliente conectado assina apenas a enquete que está sendo visualizada no momento.
 
-Example:
+Exemplo:
 
 ```json
 {
-  "type": "poll.subscribe",
-  "pollId": 12
+"type": "poll.subscribe",
+"pollId": 12
 }
 ```
 
-Conceptually, the WebSocket server maintains groups such as:
+Conceitualmente, o servidor WebSocket mantém grupos como:
 
 ```text
 poll:12
-├── client A
-├── client B
-└── client C
+├── cliente A
+├── cliente B
+└── cliente C
 
 poll:20
-├── client D
-└── client E
+├── cliente D
+└── cliente E
 ```
 
-An update to poll 12 is sent only to clients A, B and C.
+Uma atualização na enquete 12 é enviada apenas para os clientes A, B e C.
 
-This models the same general room-based real-time interaction described in the challenge without broadcasting unrelated events to every connected client.
+Isso modela a mesma interação geral em tempo real baseada em "salas" descrita no desafio, sem transmitir eventos não relacionados para todos os clientes conectados.
 
-## 11. Laravel to WebSocket Communication
+## 11. Comunicação entre Laravel e WebSocket
 
-After a successful mutation, Laravel needs to notify the Node.js WebSocket service.
+Após uma mutação bem-sucedida, o Laravel precisa notificar o serviço WebSocket em Node.js.
 
-The initial implementation uses an internal HTTP request.
+A implementação inicial utiliza uma requisição HTTP interna.
 
 ```text
 Laravel
-   |
-   | internal HTTP request
-   v
+| 
+| requisição HTTP interna
+v
 Node.js
-   |
-   v
-WebSocket subscribers
+| 
+v
+Assinantes do WebSocket
 ```
 
-This approach was chosen because it is:
+Essa abordagem foi escolhida por ser:
 
-- explicit;
-- easy to understand;
-- easy to test locally;
-- sufficient for the challenge scope;
-- free from additional infrastructure dependencies such as Redis.
+- explícita;
+- fácil de entender; - fácil de testar localmente;
+- suficiente para o escopo do desafio;
+- livre de dependências de infraestrutura adicionais, como o Redis.
 
-If this application needed to operate at a much larger scale, an asynchronous message broker could be evaluated later.
+Caso esta aplicação precisasse operar em uma escala muito maior, um *message broker* assíncrono poderia ser avaliado posteriormente.
 
-## 12. Real-time Payload Strategy
+## 12. Estratégia de Payload em Tempo Real
 
-Result updates will contain the current result snapshot instead of only a vote increment.
+As atualizações de resultados conterão o *snapshot* (estado atual) dos resultados, em vez de apenas um incremento de voto.
 
-Example:
+Exemplo:
 
 ```json
 {
-  "type": "poll.results.updated",
-  "pollId": 12,
-  "payload": {
-    "total_votes": 128,
-    "options": []
-  }
+"type": "poll.results.updated",
+"pollId": 12,
+"payload": {
+"total_votes": 128,
+"options": []
+}
 }
 ```
 
-Poll result payloads are small, so sending the current snapshot simplifies the frontend and reduces synchronization problems caused by missing or duplicated incremental events.
+Os *payloads* de resultados da enquete são pequenos; portanto, enviar o *snapshot* atual simplifica o *frontend* e reduz problemas de sincronização causados ​​por eventos incrementais perdidos ou duplicados.
 
-## 13. Reconnection Strategy
+## 13. Estratégia de Reconexão
 
-WebSocket delivery is not guaranteed while a client is disconnected.
+A entrega via WebSocket não é garantida enquanto o cliente estiver desconectado.
 
-Example:
-
-```text
-client shows 50 votes
-       |
-connection lost
-       |
-votes 51, 52 and 53 happen
-       |
-connection restored
-```
-
-Simply reconnecting would leave the client with stale state.
-
-For that reason, reconnection follows this flow:
+Exemplo:
 
 ```text
-connection restored
-        |
-subscribe again
-        |
-reload poll through HTTP
-        |
-replace local state
-        |
-continue receiving events
+cliente exibe 50 votos
+|
+conexão perdida
+|
+votos 51, 52 e 53 ocorrem
+|
+conexão restaurada
 ```
 
-The WebSocket informs the client that something changed.
+Simplesmente reconectar deixaria o cliente com um estado desatualizado.
 
-The HTTP API provides the authoritative state.
-
-## 14. Connection Health
-
-The WebSocket server will use ping/pong heartbeat checks.
-
-This allows the server to detect clients that are no longer reachable even when the connection has not been closed cleanly.
-
-Dead connections can then be removed from active subscription groups.
-
-## 15. Poll Closing
-
-The backend determines whether voting is still allowed using the poll's `closes_at` value.
-
-The frontend may display a countdown, but the browser clock is never trusted to authorize a vote.
+Por esse motivo, a reconexão segue este fluxo:
 
 ```text
-Frontend countdown
-        =
-user experience
-
-Backend closes_at validation
-        =
-business rule
+conexão restaurada
+|
+inscrever-se novamente
+|
+recarregar enquete via HTTP
+|
+substituir estado local
+|
+continuar recebendo eventos
 ```
 
-This prevents client-side manipulation from bypassing poll closing rules.
+O WebSocket informa ao cliente que algo mudou.
 
-## 16. API Response Strategy
+A API HTTP fornece o estado oficial (fonte da verdade).
 
-The challenge requires direct JSON responses without a top-level `data` wrapper.
+## 14. Saúde da Conexão
 
-Resources may still be used in Laravel, but wrapping must be disabled.
+O servidor WebSocket utilizará verificações de *heartbeat* do tipo *ping/pong*.
 
-Poll responses can contain derived information such as:
+Isso permite que o servidor detecte clientes que não estão mais acessíveis, mesmo quando a conexão não foi encerrada de forma limpa.
 
-- current status;
-- total votes;
-- vote count per option;
-- percentage per option;
-- whether the authenticated user has voted;
-- which option the authenticated user selected.
+Conexões inativas podem, então, ser removidas dos grupos de inscrição ativos.
 
-Derived values such as percentages and poll status do not need to be persisted as separate database fields.
+## 15. Encerramento da Enquete
 
-## 17. Error Strategy
+O *backend* determina se a votação ainda é permitida utilizando o valor `closes_at` da enquete.
 
-Expected domain conflicts should return meaningful HTTP status codes and machine-readable error codes.
+O *frontend* pode exibir uma contagem regressiva, mas nunca se confia no relógio do navegador para autorizar um voto.
 
-Example:
+```text
+Contagem regressiva no frontend
+=
+experiência do usuário
+
+Validação de closes_at no backend
+=
+regra de negócio
+```
+
+Isso impede que manipulações no lado do cliente contornem as regras de encerramento da enquete.
+
+## 16. Estratégia de Resposta da API
+
+O desafio exige respostas diretas em JSON, sem um *wrapper* (invólucro) de nível superior chamado `data`. Recursos (Resources) ainda podem ser utilizados no Laravel, mas o encapsulamento (*wrapping*) deve ser desativado.
+
+As respostas da enquete podem conter informações derivadas, tais como:
+
+- status atual;
+- total de votos;
+- contagem de votos por opção;
+- porcentagem por opção;
+- se o usuário autenticado já votou;
+- qual opção o usuário autenticado selecionou.
+
+Valores derivados, como porcentagens e o status da enquete, não precisam ser persistidos como campos separados no banco de dados.
+
+## 17. Estratégia de Erros
+
+Conflitos de domínio esperados devem retornar códigos de status HTTP significativos e códigos de erro legíveis por máquinas.
+
+Exemplo:
 
 ```json
 {
-  "message": "You have already voted in this poll.",
-  "code": "already_voted"
+"message": "Você já votou nesta enquete.",
+"code": "already_voted"
 }
 ```
 
-Important domain cases include:
+Casos de domínio importantes incluem:
 
 - `already_voted`;
 - `poll_closed`;
 - `invalid_option`.
 
-This allows the React interface to react to known errors without depending only on human-readable text.
+Isso permite que a interface React reaja a erros conhecidos sem depender apenas de texto legível por humanos.
 
-## 18. Main Technical Trade-offs
+## 18. Principais decisões técnicas e *trade-offs*
 
-### Guest session instead of traditional authentication
+### Sessão de convidado em vez de autenticação tradicional
 
-Chosen because Sanctum authentication is required while login and registration are explicitly outside the challenge scope.
+Escolha feita porque a autenticação via Sanctum é necessária, enquanto o login e o cadastro estão explicitamente fora do escopo do desafio.
 
-### Database constraint for duplicate votes
+### Restrição de banco de dados para votos duplicados
 
-Chosen because application checks alone cannot guarantee integrity under concurrent requests.
+Escolha feita porque verificações apenas na aplicação não garantem a integridade em cenários de requisições concorrentes.
 
-### HTTP for mutations and WebSocket for propagation
+### HTTP para mutações e WebSocket para propagação
 
-Chosen so business rules have one owner: Laravel.
+Escolha feita para centralizar as regras de negócio em um único responsável: o Laravel.
 
-### Internal HTTP between Laravel and Node.js
+### HTTP interno entre Laravel e Node.js
 
-Chosen to avoid adding unnecessary infrastructure to a small technical challenge.
+Escolha feita para evitar a adição de infraestrutura desnecessária a um desafio técnico de pequeno porte.
 
-### Result snapshot instead of incremental events
+### *Snapshot* do resultado em vez de eventos incrementais
 
-Chosen because poll result payloads are small and synchronization becomes simpler.
+Escolha feita porque os *payloads* de resultados da enquete são pequenos, simplificando a sincronização.
 
-### Monorepository
+### Monorepositório
 
-Chosen because backend, frontend and WebSocket server belong to one deliverable and need to be easy for the evaluator to run locally.
+Escolha feita porque o *backend*, o *frontend* e o servidor WebSocket fazem parte de uma única entrega e precisam ser fáceis de executar localmente pelo avaliador.

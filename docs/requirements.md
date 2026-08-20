@@ -1,258 +1,254 @@
-# Product Requirements
+# Requisitos do Produto
 
-## Objective
+## Objetivo
 
-Build a live polling wall where users can create polls, vote, and follow result changes in real time without refreshing the page.
+Criar um painel de enquetes em tempo real onde os usuários possam criar enquetes, votar e acompanhar as alterações nos resultados em tempo real, sem recarregar a página.
 
-The feature should represent, on a smaller scale, the same multi-user real-time interaction pattern used in FantasyDraft live rooms.
+A funcionalidade deve representar, em menor escala, o mesmo padrão de interação multiusuário em tempo real utilizado nas salas ao vivo do FantasyDraft.
 
-## Product References
+## Referências do Produto
 
-The product direction is based on:
+A direção do produto baseia-se em:
 
-- FantasyDraft for visual identity, lobby structure, cards, pills, empty states, forms and sports-oriented language.
-- Sleeper for live sports UX, real-time state presentation and poll result patterns.
+- FantasyDraft: para identidade visual, estrutura do lobby, cards, *pills* (etiquetas), estados de tela vazia, formulários e linguagem voltada para esportes.
+- Sleeper: para UX de esportes ao vivo, apresentação de estado em tempo real e padrões de exibição de resultados de enquetes.
 
-The goal is not to copy either interface, but to create a feature that feels consistent with the FantasyDraft product.
+O objetivo não é copiar nenhuma das interfaces, mas criar uma funcionalidade que pareça consistente com o produto FantasyDraft.
 
-## Actors
+## Atores
 
-### Guest user
+### Usuário convidado
 
-A visitor receives an automatically created guest identity and can:
+Um visitante recebe uma identidade de convidado criada automaticamente e pode:
 
-- browse polls;
-- create polls;
-- open a poll;
-- vote once;
-- follow results in real time.
+- navegar pelas enquetes;
+- criar enquetes;
+- abrir uma enquete;
+- votar uma vez;
+- acompanhar os resultados em tempo real.
 
-There is no traditional login or registration flow.
+Não há fluxo tradicional de login ou cadastro.
 
-## Functional Requirements
+## Requisitos Funcionais
 
-### RF01 — Guest session
+### RF01 — Sessão de convidado
 
-The application must create or restore a guest session so protected poll routes can use Sanctum authentication without requiring login or registration.
+A aplicação deve criar ou restaurar uma sessão de convidado para que as rotas protegidas de enquetes possam utilizar a autenticação Sanctum sem exigir login ou cadastro.
 
-### RF02 — Poll wall
+### RF02 — Painel de enquetes
 
-The user must be able to view available polls and distinguish open polls from closed polls.
+O usuário deve conseguir visualizar as enquetes disponíveis e distinguir enquetes abertas de enquetes encerradas.
 
-### RF03 — Poll creation
+### RF03 — Criação de enquete
 
-The user must be able to create a poll containing:
+O usuário deve conseguir criar uma enquete contendo:
 
-- one question;
-- at least two options;
-- an optional closing duration.
+- uma pergunta;
+- pelo menos duas opções;
+- uma duração opcional para o encerramento.
 
-### RF04 — Poll details
+### RF04 — Detalhes da enquete
 
-The user must be able to open one poll and view its current state.
+O usuário deve conseguir abrir uma enquete e visualizar seu estado atual.
 
-### RF05 — Voting
+### RF05 — Votação
 
-An authenticated guest user must be able to select one option and submit one vote.
+Um usuário convidado autenticado deve conseguir selecionar uma opção e enviar um voto.
 
-### RF06 — Duplicate vote prevention
+### RF06 — Prevenção de voto duplicado
 
-A user must not be able to vote more than once in the same poll.
+O usuário não deve conseguir votar mais de uma vez na mesma enquete.
 
-### RF07 — Live results
+### RF07 — Resultados em tempo real
 
-When a valid vote is registered, users currently viewing that poll must receive the updated results without refreshing the page.
+Quando um voto válido é registrado, os usuários que estiverem visualizando aquela enquete devem receber os resultados atualizados sem recarregar a página.
 
-### RF08 — Poll closing
+### RF08 — Encerramento da enquete
 
-When a poll has a closing time and that time is reached, new votes must be rejected.
+Quando uma enquete tiver um horário de encerramento e esse horário for atingido, novos votos devem ser rejeitados.
 
-### RF09 — Result visualization
+### RF09 — Visualização de resultados
 
-Results must show:
+Os resultados devem exibir:
 
-- vote count by option;
-- percentage by option;
-- total votes.
+- contagem de votos por opção;
+- porcentagem por opção;
+- total de votos. ### RF10 — Estado da conexão em tempo real
 
-### RF10 — Real-time connection state
+A interface deve indicar quando a conexão ativa está em funcionamento ou sendo restabelecida.
 
-The interface must indicate when the live connection is active or reconnecting.
+### RF11 — Sincronização após reconexão
 
-### RF11 — Reconnection synchronization
+Após uma reconexão via WebSocket, o cliente deve buscar novamente o estado oficial da enquete antes de prosseguir.
 
-After a WebSocket reconnection, the client must fetch the authoritative poll state again before continuing.
-
-## Business Rules
+## Regras de Negócio
 
 ### RN01
 
-A poll question is required.
+Uma pergunta para a enquete é obrigatória.
 
 ### RN02
 
-A poll must contain between 2 and 10 valid options.
+Uma enquete deve conter entre 2 e 10 opções válidas.
 
 ### RN03
 
-Empty poll options are not accepted.
+Opções de enquete vazias não são aceitas.
 
 ### RN04
 
-A vote option must belong to the poll receiving the vote.
+Uma opção de voto deve pertencer à enquete que está recebendo o voto.
 
 ### RN05
 
-A user can cast only one vote per poll.
+Um usuário pode registrar apenas um voto por enquete.
 
 ### RN06
 
-The poll creator is allowed to vote.
+O criador da enquete tem permissão para votar.
 
 ### RN07
 
-A closed poll cannot receive new votes.
+Uma enquete encerrada não pode receber novos votos.
 
 ### RN08
 
-A null closing time means the poll does not close automatically.
+Um horário de encerramento nulo significa que a enquete não será encerrada automaticamente.
 
 ### RN09
 
-The backend is authoritative when deciding whether a poll is closed.
+O backend detém a autoridade para decidir se uma enquete está encerrada.
 
 ### RN10
 
-A real-time update must only be emitted after the vote has been successfully persisted.
+Uma atualização em tempo real só deve ser emitida após o voto ter sido persistido com sucesso.
 
 ### RN11
 
-Frontend vote blocking improves the user experience but cannot be the only protection against duplicate voting.
+O bloqueio de votos no frontend melhora a experiência do usuário, mas não pode ser a única proteção contra votos duplicados.
 
 ### RN12
 
-The database must guarantee the one-vote-per-user-per-poll invariant.
+O banco de dados deve garantir a regra de negócio de "um voto por usuário por enquete".
 
-## Non-functional Requirements
+## Requisitos Não Funcionais
 
 ### RNF01
 
-Backend must use Laravel 11 with PHP 8.3.
+O backend deve utilizar Laravel 11 com PHP 8.3.
 
 ### RNF02
 
-Persistence must use PostgreSQL.
+A persistência de dados deve utilizar PostgreSQL.
 
 ### RNF03
 
-Frontend must use React 18.
+O frontend deve utilizar React 18.
 
 ### RNF04
 
-Real-time communication must use Node.js with the `ws` WebSocket library.
+A comunicação em tempo real deve utilizar Node.js com a biblioteca WebSocket `ws`.
 
 ### RNF05
 
-Database primary keys must use auto-incrementing integer IDs.
+As chaves primárias do banco de dados devem utilizar IDs inteiros com incremento automático.
 
 ### RNF06
 
-Poll domain routes must be protected by `auth:sanctum`.
+As rotas do domínio de enquetes devem ser protegidas pelo middleware `auth:sanctum`.
 
 ### RNF07
 
-API responses must return direct JSON without a top-level `data` wrapper.
+As respostas da API devem retornar JSON direto, sem um invólucro (wrapper) de nível superior chamado `data`.
 
 ### RNF08
 
-React code must be componentized and hooks must keep side effects and state logic organized.
+O código React deve ser componentizado, e os hooks devem manter a organização de efeitos colaterais e da lógica de estado.
 
 ### RNF09
 
-Styles must use CSS Modules or an equivalent scoped approach.
+Os estilos devem utilizar CSS Modules ou uma abordagem de escopo equivalente. ### RNF10
 
-### RNF10
-
-The WebSocket server must support poll-specific subscriptions instead of broadcasting every event to every connection.
+O servidor WebSocket deve suportar assinaturas específicas por enquete, em vez de transmitir todos os eventos para todas as conexões.
 
 ### RNF11
 
-The WebSocket server must detect dead connections.
+O servidor WebSocket deve detectar conexões inativas.
 
 ### RNF12
 
-Configuration and secrets must be provided through environment variables.
+Configurações e segredos devem ser fornecidos por meio de variáveis ​​de ambiente.
 
 ### RNF13
 
-Critical business rules must have automated tests.
+Regras de negócio críticas devem possuir testes automatizados.
 
-## Main User Stories
+## Principais Histórias de Usuário
 
-### US01 — Browse polls
+### US01 — Visualizar enquetes
 
-As a participant, I want to see available polls so I can choose one to participate in.
+Como participante, quero visualizar as enquetes disponíveis para poder escolher uma na qual participar.
 
-### US02 — Create a poll
+### US02 — Criar uma enquete
 
-As a participant, I want to create a poll with a question and options so other users can vote.
+Como participante, quero criar uma enquete com uma pergunta e opções para que outros usuários possam votar.
 
-### US03 — Vote
+### US03 — Votar
 
-As a participant, I want to choose one option so my vote is included in the poll.
+Como participante, quero escolher uma opção para que meu voto seja contabilizado na enquete.
 
-### US04 — Prevent duplicate voting
+### US04 — Impedir votos duplicados
 
-As the system, I want to prevent the same participant from voting twice so poll results remain consistent.
+Como sistema, quero impedir que o mesmo participante vote duas vezes, para garantir a consistência dos resultados da enquete.
 
-### US05 — Follow live results
+### US05 — Acompanhar resultados em tempo real
 
-As a participant, I want poll results to update automatically when other users vote so I can follow the poll live.
+Como participante, quero que os resultados da enquete sejam atualizados automaticamente à medida que outros usuários votam, para que eu possa acompanhar a enquete em tempo real.
 
-### US06 — Automatically close a poll
+### US06 — Encerrar enquete automaticamente
 
-As a poll creator, I want to optionally define how long voting stays open so the poll can finish automatically.
+Como criador da enquete, quero definir opcionalmente por quanto tempo a votação permanecerá aberta, para que a enquete possa ser encerrada automaticamente.
 
-## Core Acceptance Criteria
+## Critérios de Aceitação Principais
 
-### Poll creation
+### Criação de enquete
 
-Given a valid guest session  
-When the user submits a question with at least two valid options  
-Then the poll and its options are persisted  
-And the created poll can be opened.
+Dado que existe uma sessão de convidado válida
+Quando o usuário envia uma pergunta com pelo menos duas opções válidas
+Então a enquete e suas opções são persistidas
+E a enquete criada pode ser aberta.
 
-### Valid vote
+### Voto válido
 
-Given an open poll  
-And the current user has not voted  
-When the user selects an option belonging to that poll  
-Then exactly one vote is persisted  
-And updated results are returned.
+Dada uma enquete aberta
+E que o usuário atual ainda não votou
+Quando o usuário seleciona uma opção pertencente àquela enquete
+Então exatamente um voto é persistido
+E os resultados atualizados são retornados.
 
-### Duplicate vote
+### Voto duplicado
 
-Given the current user has already voted in a poll  
-When another vote is submitted for the same poll  
-Then the request is rejected  
-And no additional vote is persisted.
+Dado que o usuário atual já votou em uma enquete
+Quando outro voto é enviado para a mesma enquete
+Então a requisição é rejeitada
+E nenhum voto adicional é persistido.
 
-### Closed poll
+### Enquete encerrada
 
-Given the poll closing time has passed  
-When a user attempts to vote  
-Then the request is rejected  
-And poll results remain unchanged.
+Dado que o horário de encerramento da enquete já passou
+Quando um usuário tenta votar
+Então a requisição é rejeitada
+E os resultados da enquete permanecem inalterados.
 
-### Live update
+### Atualização em tempo real
 
-Given multiple users are viewing the same poll  
-When one user registers a valid vote  
-Then the connected users receive the updated result without refreshing the page.
+Dado que múltiplos usuários estão visualizando a mesma enquete
+Quando um usuário registra um voto válido
+Então os usuários conectados recebem o resultado atualizado sem recarregar a página.
 
-### Reconnection
+### Reconexão
 
-Given a user temporarily loses the WebSocket connection  
-When the connection is restored  
-Then the client subscribes to the poll again  
-And reloads the current authoritative poll state.
+Dado que um usuário perde temporariamente a conexão WebSocket
+Quando a conexão é restabelecida
+Então o cliente se inscreve novamente na enquete
+E recarrega o estado atual e oficial da enquete.
