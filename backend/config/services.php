@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'realtime' => [
+    'url' => env('REALTIME_SERVER_URL', 'http://127.0.0.1:8081'),
+    'secret' => env('REALTIME_INTERNAL_SECRET'),
+    ],
+
 ];

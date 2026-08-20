@@ -6,11 +6,17 @@ use App\Http\Requests\StoreVoteRequest;
 use App\Http\Resources\PollResource;
 use App\Models\Poll;
 use App\Models\Vote;
+use App\Services\RealtimeNotifier;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 
 class VoteController extends Controller
 {
+    public function __construct(
+        private readonly RealtimeNotifier $realtimeNotifier,
+    ) {
+    }
+
     public function store(StoreVoteRequest $request, Poll $poll): JsonResponse
     {
         $userId = $request->user()->id;
@@ -54,6 +60,8 @@ class VoteController extends Controller
         $poll = Poll::query()
             ->withViewerState($userId)
             ->findOrFail($poll->id);
+
+        $this->realtimeNotifier->pollResultsUpdated($poll);
 
         return (new PollResource($poll))
             ->response()

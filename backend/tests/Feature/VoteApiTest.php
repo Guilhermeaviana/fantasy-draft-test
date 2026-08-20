@@ -5,11 +5,21 @@ namespace Tests\Feature;
 use App\Models\Poll;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class VoteApiTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Http::fake([
+            '*' => Http::response(null, 204),
+        ]);
+    }
 
     public function test_unauthenticated_user_cannot_vote(): void
     {
@@ -26,6 +36,8 @@ class VoteApiTest extends TestCase
             ->assertUnauthorized();
 
         $this->assertDatabaseCount('votes', 0);
+
+        Http::assertNothingSent();
     }
 
     public function test_authenticated_guest_can_vote_and_receive_updated_results(): void
@@ -62,6 +74,17 @@ class VoteApiTest extends TestCase
             'poll_option_id' => $option->id,
             'user_id' => $voter->id,
         ]);
+
+        Http::assertSent(function ($request) use ($poll) {
+            return $request->url()
+                === "http://127.0.0.1:8081/internal/polls/{$poll->id}/results-updated"
+                && $request->hasHeader(
+                    'X-Internal-Secret',
+                    config('services.realtime.secret')
+                )
+                && $request['id'] === $poll->id
+                && $request['total_votes'] === 1;
+        });
     }
 
     public function test_user_cannot_vote_twice_in_same_poll(): void
@@ -103,6 +126,8 @@ class VoteApiTest extends TestCase
             'poll_option_id' => $firstOption->id,
             'user_id' => $voter->id,
         ]);
+
+        Http::assertSentCount(1);
     }
 
     public function test_user_cannot_vote_with_option_from_another_poll(): void
@@ -131,6 +156,8 @@ class VoteApiTest extends TestCase
             ]);
 
         $this->assertDatabaseCount('votes', 0);
+
+        Http::assertNothingSent();
     }
 
     public function test_user_cannot_vote_in_closed_poll(): void
@@ -161,6 +188,8 @@ class VoteApiTest extends TestCase
             ]);
 
         $this->assertDatabaseCount('votes', 0);
+
+        Http::assertNothingSent();
     }
 
     private function createPoll(
