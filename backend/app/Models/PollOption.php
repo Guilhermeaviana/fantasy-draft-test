@@ -3,28 +3,29 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable
+class PollOption extends Model
 {
-    use HasApiTokens, HasFactory;
+    use HasFactory;
 
     protected $fillable = [
-        'is_guest',
+        'label',
+        'position',
     ];
 
     protected function casts(): array
     {
         return [
-            'is_guest' => 'boolean',
+            'position' => 'integer',
         ];
     }
 
-    public function createdPolls(): HasMany
+    public function poll(): BelongsTo
     {
-        return $this->hasMany(Poll::class, 'created_by');
+        return $this->belongsTo(Poll::class);
     }
 
     public function votes(): HasMany
