@@ -1,33 +1,78 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+
 import api from '../api/client';
 import CreatePollModal from '../components/CreatePollModal';
+
 import styles from './PollBoardPage.module.css';
+
+async function fetchPolls() {
+    const response = await api.get('/api/polls');
+
+    return response.data;
+}
 
 export default function PollBoardPage() {
     const [polls, setPolls] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [modalOpen, setModalOpen] = useState(false);
+    const [modalOpen, setModalOpen] =
+        useState(false);
 
     const loadPolls = async () => {
+        setLoading(true);
+
         try {
-            const response = await api.get('/api/polls');
-            setPolls(response.data);
+            const data = await fetchPolls();
+
+            setPolls(data);
             setError('');
         } catch {
-            setError('Não foi possível carregar as enquetes.');
+            setError(
+                'Não foi possível carregar as enquetes.',
+            );
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        loadPolls();
+        let active = true;
+
+        fetchPolls()
+            .then((data) => {
+                if (!active) {
+                    return;
+                }
+
+                setPolls(data);
+                setError('');
+            })
+            .catch(() => {
+                if (!active) {
+                    return;
+                }
+
+                setError(
+                    'Não foi possível carregar as enquetes.',
+                );
+            })
+            .finally(() => {
+                if (active) {
+                    setLoading(false);
+                }
+            });
+
+        return () => {
+            active = false;
+        };
     }, []);
 
     const handleCreated = (poll) => {
-        setPolls((current) => [poll, ...current]);
+        setPolls((current) => [
+            poll,
+            ...current,
+        ]);
     };
 
     return (
@@ -41,23 +86,31 @@ export default function PollBoardPage() {
                     <h1>Decida em tempo real.</h1>
 
                     <p>
-                        Crie uma votação, participe e acompanhe os
-                        resultados mudarem ao vivo.
+                        Crie uma votação, participe e
+                        acompanhe os resultados mudarem
+                        ao vivo.
                     </p>
                 </div>
 
                 <button
                     className={styles.createButton}
-                    onClick={() => setModalOpen(true)}
+                    onClick={() =>
+                        setModalOpen(true)
+                    }
                 >
                     + Nova enquete
                 </button>
             </section>
 
             <section className={styles.section}>
-                <div className={styles.sectionHeading}>
+                <div
+                    className={
+                        styles.sectionHeading
+                    }
+                >
                     <div>
                         <h2>Enquetes</h2>
+
                         <span>
                             {polls.length} disponíveis
                         </span>
@@ -78,25 +131,46 @@ export default function PollBoardPage() {
                 )}
 
                 {!loading && error && (
-                    <div className={styles.state}>{error}</div>
-                )}
-
-                {!loading && !error && polls.length === 0 && (
-                    <div className={styles.empty}>
-                        <div className={styles.emptyIcon}>?</div>
-                        <h3>Nenhuma enquete criada</h3>
-                        <p>
-                            Crie a primeira votação e acompanhe os
-                            resultados em tempo real.
-                        </p>
-
-                        <button
-                            onClick={() => setModalOpen(true)}
-                        >
-                            Criar enquete
-                        </button>
+                    <div className={styles.state}>
+                        {error}
                     </div>
                 )}
+
+                {!loading
+                    && !error
+                    && polls.length === 0 && (
+                        <div
+                            className={
+                                styles.empty
+                            }
+                        >
+                            <div
+                                className={
+                                    styles.emptyIcon
+                                }
+                            >
+                                ?
+                            </div>
+
+                            <h3>
+                                Nenhuma enquete criada
+                            </h3>
+
+                            <p>
+                                Crie a primeira votação
+                                e acompanhe os resultados
+                                em tempo real.
+                            </p>
+
+                            <button
+                                onClick={() =>
+                                    setModalOpen(true)
+                                }
+                            >
+                                Criar enquete
+                            </button>
+                        </div>
+                    )}
 
                 <div className={styles.grid}>
                     {polls.map((poll) => (
@@ -105,44 +179,78 @@ export default function PollBoardPage() {
                             className={styles.card}
                             key={poll.id}
                         >
-                            <div className={styles.cardTop}>
+                            <div
+                                className={
+                                    styles.cardTop
+                                }
+                            >
                                 <span
                                     className={
-                                        poll.status === 'open'
+                                        poll.status
+                                        === 'open'
                                             ? styles.live
                                             : styles.closed
                                     }
                                 >
-                                    {poll.status === 'open'
+                                    {poll.status
+                                    === 'open'
                                         ? '● AO VIVO'
                                         : 'ENCERRADA'}
                                 </span>
 
-                                <span className={styles.votes}>
+                                <span
+                                    className={
+                                        styles.votes
+                                    }
+                                >
                                     {poll.total_votes}{' '}
-                                    {poll.total_votes === 1
+                                    {poll.total_votes
+                                    === 1
                                         ? 'voto'
                                         : 'votos'}
                                 </span>
                             </div>
 
-                            <h3>{poll.question}</h3>
+                            <h3>
+                                {poll.question}
+                            </h3>
 
-                            <div className={styles.optionPreview}>
+                            <div
+                                className={
+                                    styles.optionPreview
+                                }
+                            >
                                 {poll.options
                                     .slice(0, 3)
                                     .map((option) => (
-                                        <span key={option.id}>
-                                            {option.label}
+                                        <span
+                                            key={
+                                                option.id
+                                            }
+                                        >
+                                            {
+                                                option.label
+                                            }
                                         </span>
                                     ))}
                             </div>
 
-                            <div className={styles.cardFooter}>
+                            <div
+                                className={
+                                    styles.cardFooter
+                                }
+                            >
                                 <span>
-                                    {poll.options.length} opções
+                                    {
+                                        poll.options
+                                            .length
+                                    }{' '}
+                                    opções
                                 </span>
-                                <strong>Participar →</strong>
+
+                                <strong>
+                                    Participar →
+                                </strong>
                             </div>
                         </Link>
                     ))}
@@ -151,7 +259,9 @@ export default function PollBoardPage() {
 
             <CreatePollModal
                 open={modalOpen}
-                onClose={() => setModalOpen(false)}
+                onClose={() =>
+                    setModalOpen(false)
+                }
                 onCreated={handleCreated}
             />
         </main>

@@ -172,6 +172,7 @@ export default function CreatePollModal({
                                 setDuration(event.target.value)
                             }
                         >
+                            <option value="1">1 minuto</option>
                             <option value="5">5 minutos</option>
                             <option value="15">15 minutos</option>
                             <option value="30">30 minutos</option>
