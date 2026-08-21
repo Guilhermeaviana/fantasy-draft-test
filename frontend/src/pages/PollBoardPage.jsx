@@ -1,8 +1,13 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import {
+    useEffect,
+    useMemo,
+    useState,
+} from 'react';
 
 import api from '../api/client';
+
 import CreatePollModal from '../components/CreatePollModal';
+import PollCard from '../components/PollCard';
 
 import styles from './PollBoardPage.module.css';
 
@@ -12,12 +17,29 @@ async function fetchPolls() {
     return response.data;
 }
 
+const filters = [
+    {
+        id: 'all',
+        label: 'Todas',
+    },
+    {
+        id: 'live',
+        label: 'Ao vivo',
+    },
+    {
+        id: 'closed',
+        label: 'Encerradas',
+    },
+];
+
 export default function PollBoardPage() {
     const [polls, setPolls] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [modalOpen, setModalOpen] =
         useState(false);
+    const [activeFilter, setActiveFilter] =
+        useState('all');
 
     const loadPolls = async () => {
         setLoading(true);
@@ -68,77 +90,173 @@ export default function PollBoardPage() {
         };
     }, []);
 
+    const filteredPolls = useMemo(() => {
+        if (activeFilter === 'live') {
+            return polls.filter(
+                (poll) => poll.status === 'open',
+            );
+        }
+
+        if (activeFilter === 'closed') {
+            return polls.filter(
+                (poll) => poll.status === 'closed',
+            );
+        }
+
+        return polls;
+    }, [polls, activeFilter]);
+
+    const liveCount = polls.filter(
+        (poll) => poll.status === 'open',
+    ).length;
+
     const handleCreated = (poll) => {
         setPolls((current) => [
             poll,
             ...current,
         ]);
+
+        setActiveFilter('all');
     };
 
     return (
         <main className={styles.page}>
             <section className={styles.hero}>
-                <div>
-                    <span className={styles.eyebrow}>
-                        MURAL DE ENQUETES
-                    </span>
+                <div className={styles.heroContent}>
+                    <div className={styles.eyebrow}>
+                        <span className={styles.liveDot} />
 
-                    <h1>Decida em tempo real.</h1>
+                        LIVE POLLS
+                    </div>
+
+                    <h1>
+                        A opinião muda.
+                        <br />
+                        O placar acompanha.
+                    </h1>
 
                     <p>
-                        Crie uma votação, participe e
-                        acompanhe os resultados mudarem
-                        ao vivo.
+                        Crie enquetes esportivas,
+                        participe de votações e
+                        acompanhe o consenso da
+                        comunidade se formar em tempo
+                        real.
                     </p>
                 </div>
 
                 <button
+                    type="button"
                     className={styles.createButton}
                     onClick={() =>
                         setModalOpen(true)
                     }
                 >
-                    + Nova enquete
+                    <span>+</span>
+                    Criar enquete
                 </button>
             </section>
 
-            <section className={styles.section}>
-                <div
-                    className={
-                        styles.sectionHeading
-                    }
-                >
+            <section
+                className={styles.pollSection}
+                id="live-polls"
+            >
+                <div className={styles.toolbar}>
                     <div>
-                        <h2>Enquetes</h2>
-
-                        <span>
-                            {polls.length} disponíveis
+                        <span
+                            className={
+                                styles.sectionEyebrow
+                            }
+                        >
+                            COMUNIDADE
                         </span>
+
+                        <div
+                            className={
+                                styles.sectionTitle
+                            }
+                        >
+                            <h2>Enquetes</h2>
+
+                            <span>
+                                {liveCount} ao vivo
+                            </span>
+                        </div>
                     </div>
 
                     <button
+                        type="button"
                         className={styles.refresh}
                         onClick={loadPolls}
+                        disabled={loading}
                     >
-                        Atualizar
+                        {loading
+                            ? 'Atualizando...'
+                            : 'Atualizar'}
                     </button>
                 </div>
 
-                {loading && (
+                <div className={styles.filters}>
+                    {filters.map((filter) => (
+                        <button
+                            key={filter.id}
+                            type="button"
+                            className={`${styles.filter} ${
+                                activeFilter
+                                === filter.id
+                                    ? styles.filterActive
+                                    : ''
+                            }`}
+                            onClick={() =>
+                                setActiveFilter(
+                                    filter.id,
+                                )
+                            }
+                        >
+                            {filter.label}
+
+                            {filter.id === 'live'
+                                && liveCount > 0 && (
+                                    <span>
+                                        {liveCount}
+                                    </span>
+                                )}
+                        </button>
+                    ))}
+                </div>
+
+                {loading && polls.length === 0 && (
                     <div className={styles.state}>
-                        Carregando enquetes...
+                        <div
+                            className={
+                                styles.loader
+                            }
+                        />
+
+                        <strong>
+                            Carregando enquetes
+                        </strong>
+
+                        <span>
+                            Buscando as votações mais
+                            recentes...
+                        </span>
                     </div>
                 )}
 
                 {!loading && error && (
                     <div className={styles.state}>
-                        {error}
+                        <strong>
+                            Algo deu errado
+                        </strong>
+
+                        <span>{error}</span>
                     </div>
                 )}
 
                 {!loading
                     && !error
-                    && polls.length === 0 && (
+                    && filteredPolls.length
+                        === 0 && (
                         <div
                             className={
                                 styles.empty
@@ -152,17 +270,18 @@ export default function PollBoardPage() {
                                 ?
                             </div>
 
-                            <h3>
-                                Nenhuma enquete criada
-                            </h3>
+                            <strong>
+                                Nenhuma enquete nesta
+                                categoria
+                            </strong>
 
-                            <p>
-                                Crie a primeira votação
-                                e acompanhe os resultados
-                                em tempo real.
-                            </p>
+                            <span>
+                                Tente outro filtro ou
+                                crie uma nova votação.
+                            </span>
 
                             <button
+                                type="button"
                                 onClick={() =>
                                     setModalOpen(true)
                                 }
@@ -172,89 +291,19 @@ export default function PollBoardPage() {
                         </div>
                     )}
 
-                <div className={styles.grid}>
-                    {polls.map((poll) => (
-                        <Link
-                            to={`/polls/${poll.id}`}
-                            className={styles.card}
-                            key={poll.id}
-                        >
-                            <div
-                                className={
-                                    styles.cardTop
-                                }
-                            >
-                                <span
-                                    className={
-                                        poll.status
-                                        === 'open'
-                                            ? styles.live
-                                            : styles.closed
-                                    }
-                                >
-                                    {poll.status
-                                    === 'open'
-                                        ? '● AO VIVO'
-                                        : 'ENCERRADA'}
-                                </span>
-
-                                <span
-                                    className={
-                                        styles.votes
-                                    }
-                                >
-                                    {poll.total_votes}{' '}
-                                    {poll.total_votes
-                                    === 1
-                                        ? 'voto'
-                                        : 'votos'}
-                                </span>
-                            </div>
-
-                            <h3>
-                                {poll.question}
-                            </h3>
-
-                            <div
-                                className={
-                                    styles.optionPreview
-                                }
-                            >
-                                {poll.options
-                                    .slice(0, 3)
-                                    .map((option) => (
-                                        <span
-                                            key={
-                                                option.id
-                                            }
-                                        >
-                                            {
-                                                option.label
-                                            }
-                                        </span>
-                                    ))}
-                            </div>
-
-                            <div
-                                className={
-                                    styles.cardFooter
-                                }
-                            >
-                                <span>
-                                    {
-                                        poll.options
-                                            .length
-                                    }{' '}
-                                    opções
-                                </span>
-
-                                <strong>
-                                    Participar →
-                                </strong>
-                            </div>
-                        </Link>
-                    ))}
-                </div>
+                {!error
+                    && filteredPolls.length > 0 && (
+                        <div className={styles.grid}>
+                            {filteredPolls.map(
+                                (poll) => (
+                                    <PollCard
+                                        key={poll.id}
+                                        poll={poll}
+                                    />
+                                ),
+                            )}
+                        </div>
+                    )}
             </section>
 
             <CreatePollModal

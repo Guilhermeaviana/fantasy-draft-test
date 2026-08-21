@@ -1,4 +1,61 @@
 :root {
+    /* Backgrounds */
+    --bg-app: #050914;
+    --bg-header: rgba(5, 9, 20, 0.92);
+    --bg-elevated: #080e1c;
+
+    /* Surfaces */
+    --surface-1: #0b1324;
+    --surface-2: #101a2e;
+    --surface-3: #162238;
+    --surface-hover: #1a2942;
+
+    /* Borders */
+    --border-subtle: rgba(148, 163, 184, 0.1);
+    --border-medium: rgba(148, 163, 184, 0.16);
+    --border-strong: rgba(148, 163, 184, 0.24);
+
+    /* Text */
+    --text-primary: #f8fafc;
+    --text-secondary: #9aa9c1;
+    --text-muted: #61708a;
+    --text-faint: #46546d;
+
+    /* Brand / accents */
+    --accent-primary: #8b5cf6;
+    --accent-primary-hover: #9f7aea;
+    --accent-primary-soft: rgba(139, 92, 246, 0.14);
+
+    --accent-cyan: #22d3ee;
+    --accent-cyan-soft: rgba(34, 211, 238, 0.12);
+
+    --live: #37e77b;
+    --live-soft: rgba(55, 231, 123, 0.11);
+
+    --danger: #ff5d73;
+    --danger-soft: rgba(255, 93, 115, 0.11);
+
+    /* Radius */
+    --radius-xs: 6px;
+    --radius-sm: 9px;
+    --radius-md: 13px;
+    --radius-lg: 18px;
+    --radius-xl: 24px;
+    --radius-pill: 999px;
+
+    /* Shadows */
+    --shadow-small:
+        0 8px 24px rgba(0, 0, 0, 0.18);
+
+    --shadow-card:
+        0 22px 60px rgba(0, 0, 0, 0.24);
+
+    --shadow-glow:
+        0 0 40px rgba(139, 92, 246, 0.08);
+
+    /* Layout */
+    --page-width: 1180px;
+
     font-family:
         Inter,
         ui-sans-serif,
@@ -7,10 +64,14 @@
         BlinkMacSystemFont,
         "Segoe UI",
         sans-serif;
-    color: #eef1f8;
-    background: #080e1c;
+
+    color: var(--text-primary);
+    background: var(--bg-app);
+
     font-synthesis: none;
     text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 * {
@@ -20,46 +81,140 @@
 html {
     min-width: 320px;
     min-height: 100%;
-    background: #080e1c;
+    background: var(--bg-app);
 }
 
 body {
     min-width: 320px;
     min-height: 100vh;
     margin: 0;
+
     background:
         radial-gradient(
-            circle at 25% 0%,
-            rgba(82, 48, 154, 0.11),
-            transparent 30%
+            circle at 15% -10%,
+            rgba(139, 92, 246, 0.12),
+            transparent 31%
         ),
-        #080e1c;
+        radial-gradient(
+            circle at 92% 12%,
+            rgba(34, 211, 238, 0.055),
+            transparent 27%
+        ),
+        linear-gradient(
+            180deg,
+            #050914 0%,
+            #060b17 100%
+        );
+
+    color: var(--text-primary);
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+
+    background-image:
+        linear-gradient(
+            rgba(255, 255, 255, 0.012) 1px,
+            transparent 1px
+        ),
+        linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.012) 1px,
+            transparent 1px
+        );
+
+    background-size: 72px 72px;
+    mask-image:
+        linear-gradient(
+            to bottom,
+            rgba(0, 0, 0, 0.4),
+            transparent 70%
+        );
+}
+
+#root {
+    min-height: 100vh;
+}
+
+a {
+    color: inherit;
 }
 
 button,
 input,
-select {
-    font-family: inherit;
+select,
+textarea {
+    font: inherit;
+}
+
+button {
+    color: inherit;
 }
 
 button:disabled {
     cursor: not-allowed;
 }
 
+::selection {
+    background: rgba(139, 92, 246, 0.35);
+    color: white;
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-app);
+}
+
+::-webkit-scrollbar-thumb {
+    border: 3px solid var(--bg-app);
+    border-radius: var(--radius-pill);
+    background: #26344d;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #34445f;
+}
+
 .startup-error {
-    width: min(600px, calc(100% - 40px));
+    width: min(
+        600px,
+        calc(100% - 40px)
+    );
+
     margin: 100px auto;
-    padding: 30px;
-    border: 1px solid rgba(239, 68, 68, 0.25);
-    border-radius: 14px;
-    background: #11182a;
+    padding: 36px;
+
+    border: 1px solid
+        rgba(255, 93, 115, 0.25);
+
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-1);
+
+    box-shadow: var(--shadow-card);
+
     text-align: center;
 }
 
 .startup-error h1 {
-    color: white;
+    margin: 0 0 10px;
+    color: var(--text-primary);
 }
 
 .startup-error p {
-    color: #8793ab;
+    margin: 0;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 640px) {
+    body::before {
+        background-size: 48px 48px;
+    }
 }

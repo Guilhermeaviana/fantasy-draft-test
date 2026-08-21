@@ -1,14 +1,20 @@
 import {
     useCallback,
     useEffect,
+    useMemo,
     useState,
 } from 'react';
+
 import {
     Link,
     useParams,
 } from 'react-router-dom';
 
 import api from '../api/client';
+
+import ResultBar from '../components/ResultBar';
+import StatusBadge from '../components/StatusBadge';
+
 import { useCountdown } from '../hooks/useCountdown';
 import { usePollSocket } from '../hooks/usePollSocket';
 
@@ -33,12 +39,13 @@ export default function PollPage() {
     const [error, setError] = useState('');
     const [notFound, setNotFound] =
         useState(false);
+    const [copied, setCopied] =
+        useState(false);
 
     const loadPoll = useCallback(async () => {
         try {
-            const data = await fetchPoll(
-                pollId,
-            );
+            const data =
+                await fetchPoll(pollId);
 
             setPoll(data);
             setError('');
@@ -56,6 +63,7 @@ export default function PollPage() {
             }
 
             setNotFound(false);
+
             setError(
                 'Não foi possível carregar esta enquete.',
             );
@@ -92,6 +100,7 @@ export default function PollPage() {
                 }
 
                 setNotFound(false);
+
                 setError(
                     'Não foi possível carregar esta enquete.',
                 );
@@ -121,6 +130,7 @@ export default function PollPage() {
                         results.closes_at,
                     total_votes:
                         results.total_votes,
+
                     options:
                         current.options.map(
                             (option) => {
@@ -166,6 +176,51 @@ export default function PollPage() {
             ? 'closed'
             : 'open';
 
+    const showResults = Boolean(
+        poll
+        && (
+            poll.has_voted
+            || effectiveStatus === 'closed'
+        ),
+    );
+
+    const resultSummary = useMemo(() => {
+        if (
+            !poll
+            || !showResults
+            || poll.options.length === 0
+        ) {
+            return null;
+        }
+
+        const highestVotes = Math.max(
+            ...poll.options.map(
+                (option) => option.votes,
+            ),
+        );
+
+        const leaders =
+            poll.options.filter(
+                (option) =>
+                    option.votes
+                    === highestVotes,
+            );
+
+        if (leaders.length > 1) {
+            return {
+                label: 'Empate',
+                percentage:
+                    leaders[0]?.percentage ?? 0,
+            };
+        }
+
+        return {
+            label: leaders[0].label,
+            percentage:
+                leaders[0].percentage,
+        };
+    }, [poll, showResults]);
+
     const vote = async (optionId) => {
         if (
             !poll
@@ -180,17 +235,20 @@ export default function PollPage() {
         setError('');
 
         try {
-            const response = await api.post(
-                `/api/polls/${poll.id}/votes`,
-                {
-                    poll_option_id: optionId,
-                },
-            );
+            const response =
+                await api.post(
+                    `/api/polls/${poll.id}/votes`,
+                    {
+                        poll_option_id:
+                            optionId,
+                    },
+                );
 
             setPoll(response.data);
         } catch (requestError) {
             const code =
-                requestError.response?.data?.code;
+                requestError.response
+                    ?.data?.code;
 
             if (
                 code === 'already_voted'
@@ -200,12 +258,28 @@ export default function PollPage() {
             }
 
             setError(
-                requestError.response?.data
-                    ?.message
+                requestError.response
+                    ?.data?.message
                 ?? 'Não foi possível registrar seu voto.',
             );
         } finally {
             setVoting(false);
+        }
+    };
+
+    const copyLink = async () => {
+        try {
+            await navigator.clipboard.writeText(
+                window.location.href,
+            );
+
+            setCopied(true);
+
+            window.setTimeout(() => {
+                setCopied(false);
+            }, 1600);
+        } catch {
+            setCopied(false);
         }
     };
 
@@ -220,8 +294,16 @@ export default function PollPage() {
     ) {
         return (
             <main className={styles.page}>
-                <div className={styles.state}>
-                    Carregando enquete...
+                <div className={styles.loading}>
+                    <div
+                        className={
+                            styles.loader
+                        }
+                    />
+
+                    <span>
+                        Carregando enquete...
+                    </span>
                 </div>
             </main>
         );
@@ -230,11 +312,7 @@ export default function PollPage() {
     if (notFound) {
         return (
             <main className={styles.page}>
-                <div
-                    className={
-                        styles.notFound
-                    }
-                >
+                <div className={styles.notFound}>
                     <span>404</span>
 
                     <h1>
@@ -242,12 +320,12 @@ export default function PollPage() {
                     </h1>
 
                     <p>
-                        Esta enquete não existe ou
+                        Esta votação não existe ou
                         não está mais disponível.
                     </p>
 
                     <Link to="/">
-                        Voltar ao mural
+                        Voltar ao lobby
                     </Link>
                 </div>
             </main>
@@ -257,242 +335,412 @@ export default function PollPage() {
     if (!poll) {
         return (
             <main className={styles.page}>
-                <div className={styles.state}>
-                    {error}
+                <div className={styles.loading}>
+                    <span>{error}</span>
                 </div>
             </main>
         );
     }
 
-    const showResults =
-        poll.has_voted
-        || effectiveStatus === 'closed';
-
     return (
         <main className={styles.page}>
-            <Link
-                to="/"
-                className={styles.back}
-            >
-                ← Voltar ao mural
-            </Link>
+            <div className={styles.breadcrumb}>
+                <Link to="/">
+                    ← Lobby
+                </Link>
 
-            <section className={styles.poll}>
-                <div className={styles.top}>
-                    <div
-                        className={
-                            styles.statuses
-                        }
-                    >
-                        <span
+                <span>/</span>
+
+                <span>
+                    Enquete #{poll.id}
+                </span>
+            </div>
+
+            <section className={styles.shell}>
+                <div className={styles.hero}>
+                    <div className={styles.heroTop}>
+                        <div
                             className={
-                                effectiveStatus
-                                === 'open'
-                                    ? styles.live
-                                    : styles.closed
+                                styles.heroStatus
                             }
                         >
-                            {effectiveStatus
-                            === 'open'
-                                ? '● AO VIVO'
-                                : 'ENCERRADA'}
-                        </span>
+                            <StatusBadge
+                                status={
+                                    effectiveStatus
+                                }
+                            />
 
-                        <span
+                            <span
+                                className={
+                                    styles.realtime
+                                }
+                            >
+                                <span
+                                    className={
+                                        socketStatus
+                                        === 'connected'
+                                            ? styles.realtimeDot
+                                            : styles.realtimeDotOffline
+                                    }
+                                />
+
+                                {socketStatus
+                                === 'connected'
+                                    ? 'Atualização ao vivo'
+                                    : socketStatus
+                                        === 'reconnecting'
+                                      ? 'Reconectando'
+                                      : 'Conectando'}
+                            </span>
+                        </div>
+
+                        <button
+                            type="button"
                             className={
-                                styles.socket
+                                styles.share
                             }
+                            onClick={copyLink}
                         >
-                            {socketStatus
-                            === 'connected'
-                                ? 'Tempo real conectado'
-                                : socketStatus
-                                    === 'reconnecting'
-                                  ? 'Reconectando...'
-                                  : 'Conectando...'}
-                        </span>
+                            {copied
+                                ? 'Link copiado'
+                                : 'Compartilhar'}
+                        </button>
                     </div>
 
-                    <div
-                        className={styles.meta}
+                    <span
+                        className={
+                            styles.pollEyebrow
+                        }
                     >
-                        <span
-                            className={
-                                styles.timer
-                            }
-                        >
-                            {effectiveStatus
-                            === 'closed'
-                                ? 'Encerrada'
-                                : poll.closes_at
-                                  ? `Encerra em ${countdown.label}`
-                                  : countdown.label}
-                        </span>
+                        FANTASYDRAFT COMMUNITY
+                    </span>
 
-                        <span
-                            className={
-                                styles.voteCount
-                            }
-                        >
-                            {poll.total_votes}{' '}
-                            {poll.total_votes
-                            === 1
-                                ? 'voto'
-                                : 'votos'}
-                        </span>
+                    <h1>{poll.question}</h1>
+
+                    <p>
+                        {showResults
+                            ? effectiveStatus
+                                === 'closed'
+                                ? 'A votação foi encerrada. Confira o consenso final da comunidade.'
+                                : 'Seu voto foi registrado. O resultado continua mudando em tempo real.'
+                            : 'Escolha sua previsão. Os resultados serão liberados após o seu voto.'}
+                    </p>
+
+                    <div className={styles.metrics}>
+                        <div>
+                            <span>VOTOS</span>
+
+                            <strong>
+                                {poll.total_votes}
+                            </strong>
+                        </div>
+
+                        <div>
+                            <span>OPÇÕES</span>
+
+                            <strong>
+                                {
+                                    poll.options
+                                        .length
+                                }
+                            </strong>
+                        </div>
+
+                        <div>
+                            <span>STATUS</span>
+
+                            <strong>
+                                {effectiveStatus
+                                === 'open'
+                                    ? 'Ao vivo'
+                                    : 'Encerrada'}
+                            </strong>
+                        </div>
+
+                        <div>
+                            <span>
+                                ENCERRAMENTO
+                            </span>
+
+                            <strong>
+                                {effectiveStatus
+                                === 'closed'
+                                    ? 'Finalizada'
+                                    : poll.closes_at
+                                      ? countdown.label
+                                      : 'Sem limite'}
+                            </strong>
+                        </div>
                     </div>
                 </div>
 
-                <h1>{poll.question}</h1>
-
-                {!showResults && (
-                    <p
+                <div className={styles.contentGrid}>
+                    <section
                         className={
-                            styles.instruction
+                            styles.mainContent
                         }
                     >
-                        Escolha uma opção. Os
-                        resultados aparecem depois
-                        do seu voto.
-                    </p>
-                )}
+                        <div
+                            className={
+                                styles.sectionHeader
+                            }
+                        >
+                            <div>
+                                <span>
+                                    {showResults
+                                        ? 'CONSENSO DA COMUNIDADE'
+                                        : 'FAÇA SUA ESCOLHA'}
+                                </span>
 
-                {showResults && (
-                    <p
-                        className={
-                            styles.instruction
-                        }
-                    >
-                        {effectiveStatus
-                        === 'closed'
-                            ? 'Resultado final da enquete.'
-                            : 'Seu voto foi registrado. Acompanhe os resultados ao vivo.'}
-                    </p>
-                )}
+                                <h2>
+                                    {showResults
+                                        ? effectiveStatus
+                                            === 'closed'
+                                            ? 'Resultado final'
+                                            : 'Resultado ao vivo'
+                                        : 'Qual é a sua previsão?'}
+                                </h2>
+                            </div>
 
-                <div className={styles.options}>
-                    {poll.options.map(
-                        (option) => {
-                            const selected =
-                                poll.my_vote_option_id
-                                === option.id;
+                            {showResults && (
+                                <span
+                                    className={
+                                        styles.totalVotes
+                                    }
+                                >
+                                    {
+                                        poll.total_votes
+                                    }{' '}
+                                    {poll.total_votes
+                                    === 1
+                                        ? 'voto'
+                                        : 'votos'}
+                                </span>
+                            )}
+                        </div>
 
-                            if (showResults) {
-                                return (
-                                    <div
-                                        className={`${styles.result} ${
-                                            selected
-                                                ? styles.selected
-                                                : ''
-                                        }`}
-                                        key={
-                                            option.id
-                                        }
-                                    >
-                                        <div
-                                            className={
-                                                styles.resultFill
+                        {showResults ? (
+                            <div
+                                className={
+                                    styles.results
+                                }
+                            >
+                                {poll.options.map(
+                                    (
+                                        option,
+                                        index,
+                                    ) => (
+                                        <ResultBar
+                                            key={
+                                                option.id
                                             }
-                                            style={{
-                                                width: `${option.percentage}%`,
-                                            }}
+                                            option={
+                                                option
+                                            }
+                                            index={
+                                                index
+                                            }
+                                            selected={
+                                                poll.my_vote_option_id
+                                                === option.id
+                                            }
                                         />
-
-                                        <div
+                                    ),
+                                )}
+                            </div>
+                        ) : (
+                            <div
+                                className={
+                                    styles.voteOptions
+                                }
+                            >
+                                {poll.options.map(
+                                    (
+                                        option,
+                                        index,
+                                    ) => (
+                                        <button
+                                            key={
+                                                option.id
+                                            }
+                                            type="button"
                                             className={
-                                                styles.resultContent
+                                                styles.voteOption
+                                            }
+                                            disabled={
+                                                voting
+                                            }
+                                            onClick={() =>
+                                                vote(
+                                                    option.id,
+                                                )
                                             }
                                         >
-                                            <span>
-                                                {
-                                                    option.label
+                                            <span
+                                                className={
+                                                    styles.optionNumber
                                                 }
-
-                                                {selected && (
-                                                    <small>
-                                                        Seu voto
-                                                    </small>
+                                            >
+                                                {String(
+                                                    index
+                                                    + 1,
+                                                ).padStart(
+                                                    2,
+                                                    '0',
                                                 )}
                                             </span>
 
-                                            <strong>
-                                                {
-                                                    option.percentage
+                                            <span
+                                                className={
+                                                    styles.optionName
                                                 }
-                                                %
-                                            </strong>
-                                        </div>
+                                            >
+                                                {
+                                                    option.label
+                                                }
+                                            </span>
 
-                                        <div
-                                            className={
-                                                styles.optionVotes
-                                            }
-                                        >
-                                            {
-                                                option.votes
-                                            }{' '}
-                                            {option.votes
-                                            === 1
-                                                ? 'voto'
-                                                : 'votos'}
-                                        </div>
-                                    </div>
-                                );
+                                            <span
+                                                className={
+                                                    styles.optionAction
+                                                }
+                                            >
+                                                {voting
+                                                    ? 'Registrando...'
+                                                    : 'Selecionar →'}
+                                            </span>
+                                        </button>
+                                    ),
+                                )}
+                            </div>
+                        )}
+
+                        {error && (
+                            <div
+                                className={
+                                    styles.error
+                                }
+                            >
+                                {error}
+                            </div>
+                        )}
+                    </section>
+
+                    <aside className={styles.sidebar}>
+                        <span
+                            className={
+                                styles.sidebarEyebrow
                             }
+                        >
+                            LIVE DATA
+                        </span>
 
-                            return (
-                                <button
+                        <h3>
+                            Visão da votação
+                        </h3>
+
+                        {showResults
+                            && resultSummary && (
+                                <div
                                     className={
-                                        styles.option
-                                    }
-                                    key={
-                                        option.id
-                                    }
-                                    disabled={
-                                        voting
-                                    }
-                                    onClick={() =>
-                                        vote(
-                                            option.id,
-                                        )
+                                        styles.consensus
                                     }
                                 >
                                     <span>
-                                        {
-                                            option.label
-                                        }
+                                        LIDERANÇA
                                     </span>
 
                                     <strong>
-                                        {voting
-                                            ? 'Aguarde...'
-                                            : 'Votar →'}
+                                        {
+                                            resultSummary.label
+                                        }
                                     </strong>
-                                </button>
-                            );
-                        },
-                    )}
-                </div>
 
-                {error && (
-                    <div
-                        className={
-                            styles.error
-                        }
-                    >
-                        {error}
-                    </div>
-                )}
+                                    {resultSummary.label
+                                    !== 'Empate' && (
+                                        <small>
+                                            {
+                                                resultSummary.percentage
+                                            }
+                                            % da
+                                            comunidade
+                                        </small>
+                                    )}
+                                </div>
+                            )}
 
-                <div className={styles.footer}>
-                    <span>
-                        Enquete #{poll.id}
-                    </span>
+                        {!showResults && (
+                            <div
+                                className={
+                                    styles.lockedResult
+                                }
+                            >
+                                <div>◉</div>
 
-                    <span>
-                        Resultados atualizados ao
-                        vivo
-                    </span>
+                                <strong>
+                                    Resultado
+                                    protegido
+                                </strong>
+
+                                <span>
+                                    Vote antes de
+                                    visualizar a opinião
+                                    da comunidade.
+                                </span>
+                            </div>
+                        )}
+
+                        <div
+                            className={
+                                styles.sidebarMetrics
+                            }
+                        >
+                            <div>
+                                <span>
+                                    Conexão
+                                </span>
+
+                                <strong>
+                                    {socketStatus
+                                    === 'connected'
+                                        ? 'Online'
+                                        : 'Reconectando'}
+                                </strong>
+                            </div>
+
+                            <div>
+                                <span>
+                                    Enquete
+                                </span>
+
+                                <strong>
+                                    #{poll.id}
+                                </strong>
+                            </div>
+
+                            <div>
+                                <span>
+                                    Atualização
+                                </span>
+
+                                <strong>
+                                    WebSocket
+                                </strong>
+                            </div>
+                        </div>
+
+                        <button
+                            type="button"
+                            className={
+                                styles.copyButton
+                            }
+                            onClick={copyLink}
+                        >
+                            {copied
+                                ? '✓ Link copiado'
+                                : 'Copiar link da enquete'}
+                        </button>
+                    </aside>
                 </div>
             </section>
         </main>
