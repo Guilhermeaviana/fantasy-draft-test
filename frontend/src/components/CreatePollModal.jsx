@@ -1,33 +1,322 @@
-import { useState } from 'react';
+import {
+    useEffect,
+    useMemo,
+    useState,
+} from 'react';
+
 import api from '../api/client';
+
 import styles from './CreatePollModal.module.css';
+
+const sports = [
+    {
+        value: 'Baseball',
+        label: 'Baseball',
+        icon: '⚾',
+    },
+    {
+        value: 'Soccer',
+        label: 'Futebol',
+        icon: '⚽',
+    },
+    {
+        value: 'Basketball',
+        label: 'Basquete',
+        icon: '🏀',
+    },
+];
+
+function getLocalDate() {
+    const today = new Date();
+
+    const year = today.getFullYear();
+    const month = String(
+        today.getMonth() + 1,
+    ).padStart(2, '0');
+
+    const day = String(
+        today.getDate(),
+    ).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+}
+
+function formatEventDate(value) {
+    if (!value) {
+        return 'Horário não informado';
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return 'Horário não informado';
+    }
+
+    return new Intl.DateTimeFormat(
+        'pt-BR',
+        {
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+        },
+    ).format(date);
+}
+
+function getInitials(name) {
+    return name
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0])
+        .join('')
+        .toUpperCase();
+}
+
+function TeamLogo({
+    name,
+    logo,
+}) {
+    const [imageFailed, setImageFailed] =
+        useState(false);
+
+    if (logo && !imageFailed) {
+        return (
+            <img
+                src={logo}
+                alt=""
+                className={styles.teamLogo}
+                onError={() =>
+                    setImageFailed(true)
+                }
+            />
+        );
+    }
+
+    return (
+        <span className={styles.teamFallback}>
+            {getInitials(name)}
+        </span>
+    );
+}
 
 export default function CreatePollModal({
     open,
     onClose,
     onCreated,
 }) {
-    const [question, setQuestion] = useState('');
-    const [options, setOptions] = useState(['', '']);
-    const [duration, setDuration] = useState('15');
-    const [submitting, setSubmitting] = useState(false);
-    const [error, setError] = useState('');
+    const [mode, setMode] =
+        useState('free');
+
+    const [question, setQuestion] =
+        useState('');
+
+    const [options, setOptions] =
+        useState(['', '']);
+
+    const [duration, setDuration] =
+        useState('15');
+
+    const [submitting, setSubmitting] =
+        useState(false);
+
+    const [error, setError] =
+        useState('');
+
+    const [selectedSport, setSelectedSport] =
+        useState('Soccer');
+
+    const [sportsEvents, setSportsEvents] =
+        useState([]);
+
+    const [selectedEventId, setSelectedEventId] =
+        useState(null);
+
+    const [eventsLoading, setEventsLoading] =
+        useState(false);
+
+    const [eventsError, setEventsError] =
+        useState('');
+
+    useEffect(() => {
+        if (
+            !open
+            || mode !== 'sports'
+        ) {
+            return undefined;
+        }
+
+        let active = true;
+
+        const loadEvents = async () => {
+            setEventsLoading(true);
+            setEventsError('');
+
+            try {
+                const response =
+                    await api.get(
+                        '/api/sports-events',
+                        {
+                            params: {
+                                date: getLocalDate(),
+                                sport:
+                                    selectedSport,
+                            },
+                        },
+                    );
+
+                if (!active) {
+                    return;
+                }
+
+                const events =
+                    Array.isArray(
+                        response.data,
+                    )
+                        ? response.data
+                        : [];
+
+                setSportsEvents(events);
+            } catch {
+                if (!active) {
+                    return;
+                }
+
+                setSportsEvents([]);
+
+                setEventsError(
+                    'Não foi possível carregar os eventos esportivos.',
+                );
+            } finally {
+                if (active) {
+                    setEventsLoading(false);
+                }
+            }
+        };
+
+        loadEvents();
+
+        return () => {
+            active = false;
+        };
+    }, [
+        open,
+        mode,
+        selectedSport,
+    ]);
+
+    const selectedEvent = useMemo(
+        () =>
+            sportsEvents.find(
+                (event) =>
+                    event.id
+                    === selectedEventId,
+            ) ?? null,
+        [
+            sportsEvents,
+            selectedEventId,
+        ],
+    );
 
     if (!open) {
         return null;
     }
 
-    const updateOption = (index, value) => {
+    const resetForm = () => {
+        setMode('free');
+        setQuestion('');
+        setOptions(['', '']);
+        setDuration('15');
+        setError('');
+
+        setSelectedSport('Soccer');
+        setSportsEvents([]);
+        setSelectedEventId(null);
+        setEventsError('');
+    };
+
+    const closeModal = () => {
+        resetForm();
+        onClose();
+    };
+
+    const changeMode = (nextMode) => {
+        if (nextMode === mode) {
+            return;
+        }
+
+        setMode(nextMode);
+        setQuestion('');
+        setOptions(['', '']);
+        setSelectedEventId(null);
+        setError('');
+        setEventsError('');
+    };
+
+    const changeSport = (sport) => {
+        setSelectedSport(sport);
+        setSelectedEventId(null);
+        setQuestion('');
+        setOptions(['', '']);
+    };
+
+    const selectSportsEvent = (
+        sportsEvent,
+    ) => {
+        if (
+            sportsEvent.status
+            === 'finished'
+            || sportsEvent.status
+            === 'postponed'
+        ) {
+            return;
+        }
+
+        const homeTeam =
+            sportsEvent.home_team.name;
+
+        const awayTeam =
+            sportsEvent.away_team.name;
+
+        setSelectedEventId(
+            sportsEvent.id,
+        );
+
+        setQuestion(
+            `Quem vence ${homeTeam} x ${awayTeam}?`,
+        );
+
+        setOptions([
+            homeTeam,
+            awayTeam,
+        ]);
+
+        setError('');
+    };
+
+    const updateOption = (
+        index,
+        value,
+    ) => {
         setOptions((current) =>
-            current.map((option, optionIndex) =>
-                optionIndex === index ? value : option,
+            current.map(
+                (
+                    option,
+                    optionIndex,
+                ) =>
+                    optionIndex === index
+                        ? value
+                        : option,
             ),
         );
     };
 
     const addOption = () => {
         if (options.length < 10) {
-            setOptions((current) => [...current, '']);
+            setOptions((current) => [
+                ...current,
+                '',
+            ]);
         }
     };
 
@@ -37,38 +326,90 @@ export default function CreatePollModal({
         }
 
         setOptions((current) =>
-            current.filter((_, optionIndex) => optionIndex !== index),
+            current.filter(
+                (_, optionIndex) =>
+                    optionIndex !== index,
+            ),
         );
     };
 
-    const handleSubmit = async (event) => {
+    const handleSubmit = async (
+        event,
+    ) => {
         event.preventDefault();
+
+        if (
+            mode === 'sports'
+            && !selectedEvent
+        ) {
+            setError(
+                'Selecione um evento esportivo antes de criar a enquete.',
+            );
+
+            return;
+        }
+
+        const normalizedOptions =
+            options.map((option) =>
+                option.trim(),
+            );
+
+        if (
+            normalizedOptions.length < 2
+            || normalizedOptions.some(
+                (option) =>
+                    option.length === 0,
+            )
+        ) {
+            setError(
+                'Preencha pelo menos duas opções.',
+            );
+
+            return;
+        }
 
         setSubmitting(true);
         setError('');
 
         try {
             const payload = {
-                question: question.trim(),
-                options: options.map((option) => option.trim()),
+                question:
+                    question.trim(),
+
+                options:
+                    normalizedOptions,
+
                 duration_minutes:
                     duration === ''
                         ? null
-                        : Number(duration),
+                        : Number(
+                            duration,
+                        ),
             };
 
-            const response = await api.post('/api/polls', payload);
+            if (
+                mode === 'sports'
+                && selectedEvent
+            ) {
+                payload.sports_event_id =
+                    selectedEvent.id;
+            }
+
+            const response =
+                await api.post(
+                    '/api/polls',
+                    payload,
+                );
 
             onCreated(response.data);
 
-            setQuestion('');
-            setOptions(['', '']);
-            setDuration('15');
+            resetForm();
             onClose();
         } catch (requestError) {
             setError(
-                requestError.response?.data?.message
-                    ?? 'Não foi possível criar a enquete.',
+                requestError.response
+                    ?.data?.message
+                ?? 'Não foi possível criar a enquete.',
             );
         } finally {
             setSubmitting(false);
@@ -76,34 +417,466 @@ export default function CreatePollModal({
     };
 
     return (
-        <div className={styles.backdrop} onMouseDown={onClose}>
+        <div
+            className={styles.backdrop}
+            onMouseDown={closeModal}
+        >
             <div
                 className={styles.modal}
-                onMouseDown={(event) => event.stopPropagation()}
+                onMouseDown={(event) =>
+                    event.stopPropagation()
+                }
             >
-                <div className={styles.heading}>
+                <div
+                    className={
+                        styles.heading
+                    }
+                >
                     <div>
-                        <span>NOVA ENQUETE</span>
-                        <h2>Crie uma votação</h2>
+                        <span>
+                            NOVA ENQUETE
+                        </span>
+
+                        <h2>
+                            Criar votação
+                        </h2>
+
+                        <p>
+                            Publique uma enquete livre
+                            ou conecte a votação a um
+                            evento esportivo real.
+                        </p>
                     </div>
 
                     <button
                         type="button"
-                        className={styles.close}
-                        onClick={onClose}
+                        className={
+                            styles.close
+                        }
+                        onClick={
+                            closeModal
+                        }
+                        aria-label="Fechar modal"
                     >
                         ×
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit}>
-                    <label className={styles.field}>
-                        <span>Pergunta</span>
+                <form
+                    onSubmit={
+                        handleSubmit
+                    }
+                >
+                    <div
+                        className={
+                            styles.modeSelector
+                        }
+                    >
+                        <button
+                            type="button"
+                            className={`${styles.modeButton} ${
+                                mode === 'free'
+                                    ? styles.modeButtonActive
+                                    : ''
+                            }`}
+                            onClick={() =>
+                                changeMode(
+                                    'free',
+                                )
+                            }
+                        >
+                            <span
+                                className={
+                                    styles.modeIcon
+                                }
+                            >
+                                ?
+                            </span>
+
+                            <span>
+                                <strong>
+                                    Enquete livre
+                                </strong>
+
+                                <small>
+                                    Crie qualquer
+                                    votação
+                                </small>
+                            </span>
+                        </button>
+
+                        <button
+                            type="button"
+                            className={`${styles.modeButton} ${
+                                mode
+                                === 'sports'
+                                    ? styles.modeButtonActive
+                                    : ''
+                            }`}
+                            onClick={() =>
+                                changeMode(
+                                    'sports',
+                                )
+                            }
+                        >
+                            <span
+                                className={
+                                    styles.modeIcon
+                                }
+                            >
+                                ◉
+                            </span>
+
+                            <span>
+                                <strong>
+                                    Evento esportivo
+                                </strong>
+
+                                <small>
+                                    Use partidas reais
+                                </small>
+                            </span>
+                        </button>
+                    </div>
+
+                    {mode === 'sports' && (
+                        <section
+                            className={
+                                styles.sportsSection
+                            }
+                        >
+                            <div
+                                className={
+                                    styles.sportsHeader
+                                }
+                            >
+                                <div>
+                                    <span>
+                                        EVENTOS DE HOJE
+                                    </span>
+
+                                    <strong>
+                                        Escolha uma
+                                        partida
+                                    </strong>
+                                </div>
+
+                                <span
+                                    className={
+                                        styles.liveDataBadge
+                                    }
+                                >
+                                    LIVE DATA
+                                </span>
+                            </div>
+
+                            <div
+                                className={
+                                    styles.sportTabs
+                                }
+                            >
+                                {sports.map(
+                                    (sport) => (
+                                        <button
+                                            key={
+                                                sport.value
+                                            }
+                                            type="button"
+                                            className={`${styles.sportTab} ${
+                                                selectedSport
+                                                === sport.value
+                                                    ? styles.sportTabActive
+                                                    : ''
+                                            }`}
+                                            onClick={() =>
+                                                changeSport(
+                                                    sport.value,
+                                                )
+                                            }
+                                        >
+                                            <span>
+                                                {
+                                                    sport.icon
+                                                }
+                                            </span>
+
+                                            {
+                                                sport.label
+                                            }
+                                        </button>
+                                    ),
+                                )}
+                            </div>
+
+                            {eventsLoading && (
+                                <div
+                                    className={
+                                        styles.eventState
+                                    }
+                                >
+                                    <div
+                                        className={
+                                            styles.loader
+                                        }
+                                    />
+
+                                    <strong>
+                                        Buscando eventos
+                                    </strong>
+
+                                    <span>
+                                        Atualizando os
+                                        jogos disponíveis...
+                                    </span>
+                                </div>
+                            )}
+
+                            {!eventsLoading
+                                && eventsError && (
+                                    <div
+                                        className={
+                                            styles.eventError
+                                        }
+                                    >
+                                        {
+                                            eventsError
+                                        }
+                                    </div>
+                                )}
+
+                            {!eventsLoading
+                                && !eventsError
+                                && sportsEvents.length
+                                    === 0 && (
+                                    <div
+                                        className={
+                                            styles.eventState
+                                        }
+                                    >
+                                        <span
+                                            className={
+                                                styles.noEventsIcon
+                                            }
+                                        >
+                                            —
+                                        </span>
+
+                                        <strong>
+                                            Nenhum evento
+                                            encontrado
+                                        </strong>
+
+                                        <span>
+                                            Tente outro
+                                            esporte.
+                                        </span>
+                                    </div>
+                                )}
+
+                            {!eventsLoading
+                                && sportsEvents.length
+                                    > 0 && (
+                                    <div
+                                        className={
+                                            styles.eventList
+                                        }
+                                    >
+                                        {sportsEvents.map(
+                                            (
+                                                sportsEvent,
+                                            ) => {
+                                                const disabled =
+                                                    sportsEvent.status
+                                                    === 'finished'
+                                                    || sportsEvent.status
+                                                    === 'postponed';
+
+                                                const selected =
+                                                    selectedEventId
+                                                    === sportsEvent.id;
+
+                                                return (
+                                                    <button
+                                                        key={
+                                                            sportsEvent.id
+                                                        }
+                                                        type="button"
+                                                        disabled={
+                                                            disabled
+                                                        }
+                                                        className={`${styles.eventCard} ${
+                                                            selected
+                                                                ? styles.eventCardSelected
+                                                                : ''
+                                                        } ${
+                                                            disabled
+                                                                ? styles.eventCardDisabled
+                                                                : ''
+                                                        }`}
+                                                        onClick={() =>
+                                                            selectSportsEvent(
+                                                                sportsEvent,
+                                                            )
+                                                        }
+                                                    >
+                                                        <div
+                                                            className={
+                                                                styles.eventMeta
+                                                            }
+                                                        >
+                                                            <span>
+                                                                {
+                                                                    sportsEvent.league
+                                                                    ?? sportsEvent.sport
+                                                                }
+                                                            </span>
+
+                                                            <span>
+                                                                {
+                                                                    disabled
+                                                                        ? sportsEvent.status
+                                                                        === 'finished'
+                                                                            ? 'FINALIZADO'
+                                                                            : 'ADIADO'
+                                                                        : formatEventDate(
+                                                                            sportsEvent.starts_at,
+                                                                        )
+                                                                }
+                                                            </span>
+                                                        </div>
+
+                                                        <div
+                                                            className={
+                                                                styles.matchup
+                                                            }
+                                                        >
+                                                            <div
+                                                                className={
+                                                                    styles.team
+                                                                }
+                                                            >
+                                                                <TeamLogo
+                                                                    name={
+                                                                        sportsEvent.home_team.name
+                                                                    }
+                                                                    logo={
+                                                                        sportsEvent.home_team.logo
+                                                                    }
+                                                                />
+
+                                                                <strong>
+                                                                    {
+                                                                        sportsEvent.home_team.name
+                                                                    }
+                                                                </strong>
+                                                            </div>
+
+                                                            <div
+                                                                className={
+                                                                    styles.versus
+                                                                }
+                                                            >
+                                                                <span>
+                                                                    VS
+                                                                </span>
+                                                            </div>
+
+                                                            <div
+                                                                className={
+                                                                    styles.team
+                                                                }
+                                                            >
+                                                                <TeamLogo
+                                                                    name={
+                                                                        sportsEvent.away_team.name
+                                                                    }
+                                                                    logo={
+                                                                        sportsEvent.away_team.logo
+                                                                    }
+                                                                />
+
+                                                                <strong>
+                                                                    {
+                                                                        sportsEvent.away_team.name
+                                                                    }
+                                                                </strong>
+                                                            </div>
+                                                        </div>
+
+                                                        {selected && (
+                                                            <span
+                                                                className={
+                                                                    styles.selectedLabel
+                                                                }
+                                                            >
+                                                                ✓ EVENTO
+                                                                SELECIONADO
+                                                            </span>
+                                                        )}
+                                                    </button>
+                                                );
+                                            },
+                                        )}
+                                    </div>
+                                )}
+                        </section>
+                    )}
+
+                    {mode === 'sports'
+                        && selectedEvent && (
+                            <div
+                                className={
+                                    styles.selectedEventSummary
+                                }
+                            >
+                                <span>
+                                    EVENTO VINCULADO
+                                </span>
+
+                                <strong>
+                                    {
+                                        selectedEvent
+                                            .home_team
+                                            .name
+                                    }
+                                    {' × '}
+                                    {
+                                        selectedEvent
+                                            .away_team
+                                            .name
+                                    }
+                                </strong>
+
+                                <small>
+                                    {
+                                        selectedEvent.league
+                                    }
+                                    {' · '}
+                                    {formatEventDate(
+                                        selectedEvent.starts_at,
+                                    )}
+                                </small>
+                            </div>
+                        )}
+
+                    <label
+                        className={
+                            styles.field
+                        }
+                    >
+                        <span>
+                            Pergunta
+                        </span>
 
                         <input
                             value={question}
-                            onChange={(event) =>
-                                setQuestion(event.target.value)
+                            onChange={(
+                                event,
+                            ) =>
+                                setQuestion(
+                                    event.target
+                                        .value,
+                                )
                             }
                             maxLength={255}
                             placeholder="Quem vence o confronto de hoje?"
@@ -111,97 +884,208 @@ export default function CreatePollModal({
                         />
                     </label>
 
-                    <div className={styles.optionsHeader}>
-                        <span>Opções</span>
-                        <small>2 a 10 alternativas</small>
+                    <div
+                        className={
+                            styles.optionsHeader
+                        }
+                    >
+                        <span>
+                            Opções
+                        </span>
+
+                        <small>
+                            2 a 10 alternativas
+                        </small>
                     </div>
 
-                    <div className={styles.options}>
-                        {options.map((option, index) => (
-                            <div
-                                className={styles.optionRow}
-                                key={index}
-                            >
-                                <span className={styles.number}>
-                                    {index + 1}
-                                </span>
-
-                                <input
-                                    value={option}
-                                    maxLength={120}
-                                    required
-                                    placeholder={`Opção ${index + 1}`}
-                                    onChange={(event) =>
-                                        updateOption(
-                                            index,
-                                            event.target.value,
-                                        )
+                    <div
+                        className={
+                            styles.options
+                        }
+                    >
+                        {options.map(
+                            (
+                                option,
+                                index,
+                            ) => (
+                                <div
+                                    className={
+                                        styles.optionRow
                                     }
-                                />
-
-                                {options.length > 2 && (
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            removeOption(index)
+                                    key={index}
+                                >
+                                    <span
+                                        className={
+                                            styles.number
                                         }
                                     >
-                                        ×
-                                    </button>
-                                )}
-                            </div>
-                        ))}
+                                        {String(
+                                            index
+                                            + 1,
+                                        ).padStart(
+                                            2,
+                                            '0',
+                                        )}
+                                    </span>
+
+                                    <input
+                                        value={
+                                            option
+                                        }
+                                        maxLength={
+                                            120
+                                        }
+                                        required
+                                        placeholder={`Opção ${
+                                            index
+                                            + 1
+                                        }`}
+                                        onChange={(
+                                            event,
+                                        ) =>
+                                            updateOption(
+                                                index,
+                                                event
+                                                    .target
+                                                    .value,
+                                            )
+                                        }
+                                    />
+
+                                    {options.length
+                                        > 2 && (
+                                        <button
+                                            type="button"
+                                            className={
+                                                styles.removeOption
+                                            }
+                                            onClick={() =>
+                                                removeOption(
+                                                    index,
+                                                )
+                                            }
+                                            aria-label={`Remover opção ${
+                                                index
+                                                + 1
+                                            }`}
+                                        >
+                                            ×
+                                        </button>
+                                    )}
+                                </div>
+                            ),
+                        )}
                     </div>
 
                     {options.length < 10 && (
                         <button
-                            className={styles.addOption}
+                            className={
+                                styles.addOption
+                            }
                             type="button"
-                            onClick={addOption}
+                            onClick={
+                                addOption
+                            }
                         >
                             + Adicionar opção
                         </button>
                     )}
 
-                    <label className={styles.field}>
-                        <span>Duração</span>
+                    <label
+                        className={
+                            styles.field
+                        }
+                    >
+                        <span>
+                            Duração
+                        </span>
 
                         <select
-                            value={duration}
-                            onChange={(event) =>
-                                setDuration(event.target.value)
+                            value={
+                                duration
+                            }
+                            onChange={(
+                                event,
+                            ) =>
+                                setDuration(
+                                    event.target
+                                        .value,
+                                )
                             }
                         >
-                            <option value="1">1 minuto</option>
-                            <option value="5">5 minutos</option>
-                            <option value="15">15 minutos</option>
-                            <option value="30">30 minutos</option>
-                            <option value="60">1 hora</option>
-                            <option value="">Sem limite</option>
+                            <option value="1">
+                                1 minuto
+                            </option>
+
+                            <option value="5">
+                                5 minutos
+                            </option>
+
+                            <option value="15">
+                                15 minutos
+                            </option>
+
+                            <option value="30">
+                                30 minutos
+                            </option>
+
+                            <option value="60">
+                                1 hora
+                            </option>
+
+                            <option value="">
+                                Sem limite
+                            </option>
                         </select>
                     </label>
 
                     {error && (
-                        <div className={styles.error}>{error}</div>
+                        <div
+                            className={
+                                styles.error
+                            }
+                        >
+                            {error}
+                        </div>
                     )}
 
-                    <div className={styles.actions}>
+                    <div
+                        className={
+                            styles.actions
+                        }
+                    >
                         <button
                             type="button"
-                            className={styles.cancel}
-                            onClick={onClose}
+                            className={
+                                styles.cancel
+                            }
+                            onClick={
+                                closeModal
+                            }
                         >
                             Cancelar
                         </button>
 
                         <button
                             type="submit"
-                            className={styles.submit}
-                            disabled={submitting}
+                            className={
+                                styles.submit
+                            }
+                            disabled={
+                                submitting
+                                || (
+                                    mode
+                                    === 'sports'
+                                    && !selectedEvent
+                                )
+                            }
                         >
                             {submitting
                                 ? 'Criando...'
-                                : 'Criar enquete'}
+                                : mode
+                                === 'sports'
+                                    ? 'Criar enquete esportiva'
+                                    : 'Criar enquete'}
                         </button>
                     </div>
                 </form>

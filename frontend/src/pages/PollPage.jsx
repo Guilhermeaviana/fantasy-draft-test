@@ -28,24 +28,238 @@ async function fetchPoll(pollId) {
     return response.data;
 }
 
+function getInitials(name) {
+    return String(name ?? '')
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0])
+        .join('')
+        .toUpperCase();
+}
+
+function formatEventDate(value) {
+    if (!value) {
+        return 'Horário não informado';
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return 'Horário não informado';
+    }
+
+    return new Intl.DateTimeFormat('pt-BR', {
+        weekday: 'short',
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+    })
+        .format(date)
+        .replace('.', '')
+        .toUpperCase();
+}
+
+function formatEventTime(value) {
+    if (!value) {
+        return '--:--';
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return '--:--';
+    }
+
+    return new Intl.DateTimeFormat('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+    }).format(date);
+}
+
+function getEventStatusLabel(status) {
+    const labels = {
+        scheduled: 'AGENDADO',
+        live: 'AO VIVO',
+        finished: 'FINALIZADO',
+        postponed: 'ADIADO',
+        cancelled: 'CANCELADO',
+        canceled: 'CANCELADO',
+    };
+
+    return labels[status] ?? String(status ?? 'AGENDADO').toUpperCase();
+}
+
+function getEventStatusClass(status) {
+    if (status === 'live') {
+        return styles.eventStatusLive;
+    }
+
+    if (status === 'finished') {
+        return styles.eventStatusFinished;
+    }
+
+    if (
+        status === 'postponed'
+        || status === 'cancelled'
+        || status === 'canceled'
+    ) {
+        return styles.eventStatusAlert;
+    }
+
+    return styles.eventStatusScheduled;
+}
+
+function TeamLogo({ name, logo, compact = false }) {
+    const [failed, setFailed] = useState(false);
+
+    const className = compact
+        ? styles.optionTeamLogo
+        : styles.teamLogo;
+
+    const fallbackClassName = compact
+        ? styles.optionTeamFallback
+        : styles.teamFallback;
+
+    if (logo && !failed) {
+        return (
+            <img
+                src={logo}
+                alt=""
+                className={className}
+                onError={() => setFailed(true)}
+            />
+        );
+    }
+
+    return (
+        <span className={fallbackClassName}>
+            {getInitials(name) || '?'}
+        </span>
+    );
+}
+
+function getTeamForOption(sportsEvent, label) {
+    if (!sportsEvent) {
+        return null;
+    }
+
+    const normalizedLabel = String(label)
+        .trim()
+        .toLocaleLowerCase('pt-BR');
+
+    const teams = [
+        sportsEvent.home_team,
+        sportsEvent.away_team,
+    ];
+
+    return teams.find((team) =>
+        String(team?.name ?? '')
+            .trim()
+            .toLocaleLowerCase('pt-BR')
+        === normalizedLabel,
+    ) ?? null;
+}
+
+function SportsEventHero({ sportsEvent }) {
+    const home = sportsEvent.home_team;
+    const away = sportsEvent.away_team;
+
+    const hasScore =
+        home?.score !== null
+        && home?.score !== undefined
+        && away?.score !== null
+        && away?.score !== undefined;
+
+    return (
+        <div className={styles.sportsHero}>
+            <div className={styles.sportsHeroMeta}>
+                <div>
+                    <span className={styles.sportLabel}>
+                        {sportsEvent.sport}
+                    </span>
+
+                    <strong>
+                        {sportsEvent.league
+                            ?? 'Evento esportivo'}
+                    </strong>
+                </div>
+
+                <div className={styles.eventMetaRight}>
+                    <span>{formatEventDate(sportsEvent.starts_at)}</span>
+
+                    <span
+                        className={`${styles.eventStatus} ${getEventStatusClass(
+                            sportsEvent.status,
+                        )}`}
+                    >
+                        {getEventStatusLabel(sportsEvent.status)}
+                    </span>
+                </div>
+            </div>
+
+            <div className={styles.matchupHero}>
+                <div className={styles.heroTeam}>
+                    <TeamLogo
+                        name={home?.name}
+                        logo={home?.logo}
+                    />
+
+                    <strong>{home?.name}</strong>
+                    <span>Mandante</span>
+                </div>
+
+                <div className={styles.matchCenter}>
+                    {hasScore ? (
+                        <div className={styles.heroScore}>
+                            <strong>{home.score}</strong>
+                            <span>:</span>
+                            <strong>{away.score}</strong>
+                        </div>
+                    ) : (
+                        <>
+                            <span className={styles.matchTime}>
+                                {formatEventTime(
+                                    sportsEvent.starts_at,
+                                )}
+                            </span>
+                            <span className={styles.versus}>VS</span>
+                        </>
+                    )}
+
+                    {sportsEvent.venue && (
+                        <small>{sportsEvent.venue}</small>
+                    )}
+                </div>
+
+                <div className={`${styles.heroTeam} ${styles.heroTeamAway}`}>
+                    <TeamLogo
+                        name={away?.name}
+                        logo={away?.logo}
+                    />
+
+                    <strong>{away?.name}</strong>
+                    <span>Visitante</span>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function PollPage() {
     const { pollId } = useParams();
 
     const [poll, setPoll] = useState(null);
-    const [loading, setLoading] =
-        useState(true);
-    const [voting, setVoting] =
-        useState(false);
+    const [loading, setLoading] = useState(true);
+    const [voting, setVoting] = useState(false);
     const [error, setError] = useState('');
-    const [notFound, setNotFound] =
-        useState(false);
-    const [copied, setCopied] =
-        useState(false);
+    const [notFound, setNotFound] = useState(false);
+    const [copied, setCopied] = useState(false);
 
     const loadPoll = useCallback(async () => {
         try {
-            const data =
-                await fetchPoll(pollId);
+            const data = await fetchPoll(pollId);
 
             setPoll(data);
             setError('');
@@ -53,17 +267,13 @@ export default function PollPage() {
         } catch (requestError) {
             setPoll(null);
 
-            if (
-                requestError.response?.status
-                === 404
-            ) {
+            if (requestError.response?.status === 404) {
                 setNotFound(true);
                 setError('');
                 return;
             }
 
             setNotFound(false);
-
             setError(
                 'Não foi possível carregar esta enquete.',
             );
@@ -90,17 +300,13 @@ export default function PollPage() {
 
                 setPoll(null);
 
-                if (
-                    requestError.response?.status
-                    === 404
-                ) {
+                if (requestError.response?.status === 404) {
                     setNotFound(true);
                     setError('');
                     return;
                 }
 
                 setNotFound(false);
-
                 setError(
                     'Não foi possível carregar esta enquete.',
                 );
@@ -116,47 +322,34 @@ export default function PollPage() {
         };
     }, [pollId]);
 
-    const handleRealtimeResults =
-        useCallback((results) => {
-            setPoll((current) => {
-                if (!current) {
-                    return current;
-                }
+    const handleRealtimeResults = useCallback((results) => {
+        setPoll((current) => {
+            if (!current) {
+                return current;
+            }
 
-                return {
-                    ...current,
-                    status: results.status,
-                    closes_at:
-                        results.closes_at,
-                    total_votes:
-                        results.total_votes,
+            return {
+                ...current,
+                status: results.status,
+                closes_at: results.closes_at,
+                total_votes: results.total_votes,
+                options: current.options.map((option) => {
+                    const updated = results.options.find(
+                        (resultOption) =>
+                            resultOption.id === option.id,
+                    );
 
-                    options:
-                        current.options.map(
-                            (option) => {
-                                const updated =
-                                    results.options.find(
-                                        (
-                                            resultOption,
-                                        ) =>
-                                            resultOption.id
-                                            === option.id,
-                                    );
-
-                                return updated
-                                    ? {
-                                        ...option,
-                                        votes:
-                                            updated.votes,
-                                        percentage:
-                                            updated.percentage,
-                                    }
-                                    : option;
-                            },
-                        ),
-                };
-            });
-        }, []);
+                    return updated
+                        ? {
+                            ...option,
+                            votes: updated.votes,
+                            percentage: updated.percentage,
+                        }
+                        : option;
+                }),
+            };
+        });
+    }, []);
 
     const socketStatus = usePollSocket(
         Number(pollId),
@@ -194,30 +387,23 @@ export default function PollPage() {
         }
 
         const highestVotes = Math.max(
-            ...poll.options.map(
-                (option) => option.votes,
-            ),
+            ...poll.options.map((option) => option.votes),
         );
 
-        const leaders =
-            poll.options.filter(
-                (option) =>
-                    option.votes
-                    === highestVotes,
-            );
+        const leaders = poll.options.filter(
+            (option) => option.votes === highestVotes,
+        );
 
         if (leaders.length > 1) {
             return {
                 label: 'Empate',
-                percentage:
-                    leaders[0]?.percentage ?? 0,
+                percentage: leaders[0]?.percentage ?? 0,
             };
         }
 
         return {
             label: leaders[0].label,
-            percentage:
-                leaders[0].percentage,
+            percentage: leaders[0].percentage,
         };
     }, [poll, showResults]);
 
@@ -235,20 +421,16 @@ export default function PollPage() {
         setError('');
 
         try {
-            const response =
-                await api.post(
-                    `/api/polls/${poll.id}/votes`,
-                    {
-                        poll_option_id:
-                            optionId,
-                    },
-                );
+            const response = await api.post(
+                `/api/polls/${poll.id}/votes`,
+                {
+                    poll_option_id: optionId,
+                },
+            );
 
             setPoll(response.data);
         } catch (requestError) {
-            const code =
-                requestError.response
-                    ?.data?.code;
+            const code = requestError.response?.data?.code;
 
             if (
                 code === 'already_voted'
@@ -258,8 +440,7 @@ export default function PollPage() {
             }
 
             setError(
-                requestError.response
-                    ?.data?.message
+                requestError.response?.data?.message
                 ?? 'Não foi possível registrar seu voto.',
             );
         } finally {
@@ -285,8 +466,7 @@ export default function PollPage() {
 
     const pollMatchesRoute =
         poll
-        && Number(poll.id)
-            === Number(pollId);
+        && Number(poll.id) === Number(pollId);
 
     if (
         loading
@@ -295,15 +475,8 @@ export default function PollPage() {
         return (
             <main className={styles.page}>
                 <div className={styles.loading}>
-                    <div
-                        className={
-                            styles.loader
-                        }
-                    />
-
-                    <span>
-                        Carregando enquete...
-                    </span>
+                    <div className={styles.loader} />
+                    <span>Carregando enquete...</span>
                 </div>
             </main>
         );
@@ -314,19 +487,12 @@ export default function PollPage() {
             <main className={styles.page}>
                 <div className={styles.notFound}>
                     <span>404</span>
-
-                    <h1>
-                        Enquete não encontrada
-                    </h1>
-
+                    <h1>Enquete não encontrada</h1>
                     <p>
-                        Esta votação não existe ou
-                        não está mais disponível.
+                        Esta votação não existe ou não está
+                        mais disponível.
                     </p>
-
-                    <Link to="/">
-                        Voltar ao lobby
-                    </Link>
+                    <Link to="/">Voltar ao lobby</Link>
                 </div>
             </main>
         );
@@ -342,63 +508,48 @@ export default function PollPage() {
         );
     }
 
+    const sportsEvent = poll.sports_event;
+
     return (
         <main className={styles.page}>
             <div className={styles.breadcrumb}>
-                <Link to="/">
-                    ← Lobby
-                </Link>
-
+                <Link to="/">← Lobby</Link>
                 <span>/</span>
-
-                <span>
-                    Enquete #{poll.id}
-                </span>
+                <span>Enquete #{poll.id}</span>
             </div>
 
-            <section className={styles.shell}>
+            <section
+                className={`${styles.shell} ${
+                    sportsEvent ? styles.sportsShell : ''
+                }`}
+            >
                 <div className={styles.hero}>
                     <div className={styles.heroTop}>
-                        <div
-                            className={
-                                styles.heroStatus
-                            }
-                        >
+                        <div className={styles.heroStatus}>
                             <StatusBadge
-                                status={
-                                    effectiveStatus
-                                }
+                                status={effectiveStatus}
                             />
 
-                            <span
-                                className={
-                                    styles.realtime
-                                }
-                            >
+                            <span className={styles.realtime}>
                                 <span
                                     className={
-                                        socketStatus
-                                        === 'connected'
+                                        socketStatus === 'connected'
                                             ? styles.realtimeDot
                                             : styles.realtimeDotOffline
                                     }
                                 />
 
-                                {socketStatus
-                                === 'connected'
-                                    ? 'Atualização ao vivo'
-                                    : socketStatus
-                                        === 'reconnecting'
-                                      ? 'Reconectando'
-                                      : 'Conectando'}
+                                {socketStatus === 'connected'
+                                    ? 'Sincronização em tempo real'
+                                    : socketStatus === 'reconnecting'
+                                        ? 'Reconectando'
+                                        : 'Conectando'}
                             </span>
                         </div>
 
                         <button
                             type="button"
-                            className={
-                                styles.share
-                            }
+                            className={styles.share}
                             onClick={copyLink}
                         >
                             {copied
@@ -407,84 +558,72 @@ export default function PollPage() {
                         </button>
                     </div>
 
-                    <span
-                        className={
-                            styles.pollEyebrow
-                        }
-                    >
-                        FANTASYDRAFT COMMUNITY
+                    {sportsEvent && (
+                        <SportsEventHero
+                            sportsEvent={sportsEvent}
+                        />
+                    )}
+
+                    <span className={styles.pollEyebrow}>
+                        {sportsEvent
+                            ? 'ENQUETE DA PARTIDA'
+                            : 'FANTASYDRAFT COMMUNITY'}
                     </span>
 
-                    <h1>{poll.question}</h1>
+                    <h1
+                        className={
+                            sportsEvent
+                                ? styles.sportsPollQuestion
+                                : undefined
+                        }
+                    >
+                        {poll.question}
+                    </h1>
 
                     <p>
                         {showResults
-                            ? effectiveStatus
-                                === 'closed'
+                            ? effectiveStatus === 'closed'
                                 ? 'A votação foi encerrada. Confira o consenso final da comunidade.'
-                                : 'Seu voto foi registrado. O resultado continua mudando em tempo real.'
+                                : 'Seu voto foi registrado. O consenso continua sendo atualizado em tempo real.'
                             : 'Escolha sua previsão. Os resultados serão liberados após o seu voto.'}
                     </p>
 
                     <div className={styles.metrics}>
                         <div>
                             <span>VOTOS</span>
-
-                            <strong>
-                                {poll.total_votes}
-                            </strong>
+                            <strong>{poll.total_votes}</strong>
                         </div>
 
                         <div>
                             <span>OPÇÕES</span>
-
-                            <strong>
-                                {
-                                    poll.options
-                                        .length
-                                }
-                            </strong>
+                            <strong>{poll.options.length}</strong>
                         </div>
 
                         <div>
-                            <span>STATUS</span>
-
+                            <span>STATUS DA ENQUETE</span>
                             <strong>
-                                {effectiveStatus
-                                === 'open'
-                                    ? 'Ao vivo'
+                                {effectiveStatus === 'open'
+                                    ? 'Aberta'
                                     : 'Encerrada'}
                             </strong>
                         </div>
 
                         <div>
-                            <span>
-                                ENCERRAMENTO
-                            </span>
-
+                            <span>ENCERRAMENTO</span>
                             <strong>
-                                {effectiveStatus
-                                === 'closed'
+                                {effectiveStatus === 'closed'
                                     ? 'Finalizada'
                                     : poll.closes_at
-                                      ? countdown.label
-                                      : 'Sem limite'}
+                                        ? countdown.label
+                                        : 'Sem limite'}
                             </strong>
                         </div>
                     </div>
                 </div>
 
                 <div className={styles.contentGrid}>
-                    <section
-                        className={
-                            styles.mainContent
-                        }
-                    >
-                        <div
-                            className={
-                                styles.sectionHeader
-                            }
-                        >
+                    <section className={styles.mainContent}>
+                        <div className={styles.sectionHeader}>
                             <div>
                                 <span>
                                     {showResults
@@ -494,25 +633,17 @@ export default function PollPage() {
 
                                 <h2>
                                     {showResults
-                                        ? effectiveStatus
-                                            === 'closed'
+                                        ? effectiveStatus === 'closed'
                                             ? 'Resultado final'
-                                            : 'Resultado ao vivo'
+                                            : 'Resultado em tempo real'
                                         : 'Qual é a sua previsão?'}
                                 </h2>
                             </div>
 
                             {showResults && (
-                                <span
-                                    className={
-                                        styles.totalVotes
-                                    }
-                                >
-                                    {
-                                        poll.total_votes
-                                    }{' '}
-                                    {poll.total_votes
-                                    === 1
+                                <span className={styles.totalVotes}>
+                                    {poll.total_votes}{' '}
+                                    {poll.total_votes === 1
                                         ? 'voto'
                                         : 'votos'}
                                 </span>
@@ -520,26 +651,13 @@ export default function PollPage() {
                         </div>
 
                         {showResults ? (
-                            <div
-                                className={
-                                    styles.results
-                                }
-                            >
+                            <div className={styles.results}>
                                 {poll.options.map(
-                                    (
-                                        option,
-                                        index,
-                                    ) => (
+                                    (option, index) => (
                                         <ResultBar
-                                            key={
-                                                option.id
-                                            }
-                                            option={
-                                                option
-                                            }
-                                            index={
-                                                index
-                                            }
+                                            key={option.id}
+                                            option={option}
+                                            index={index}
                                             selected={
                                                 poll.my_vote_option_id
                                                 === option.id
@@ -549,191 +667,163 @@ export default function PollPage() {
                                 )}
                             </div>
                         ) : (
-                            <div
-                                className={
-                                    styles.voteOptions
-                                }
-                            >
+                            <div className={styles.voteOptions}>
                                 {poll.options.map(
-                                    (
-                                        option,
-                                        index,
-                                    ) => (
-                                        <button
-                                            key={
-                                                option.id
-                                            }
-                                            type="button"
-                                            className={
-                                                styles.voteOption
-                                            }
-                                            disabled={
-                                                voting
-                                            }
-                                            onClick={() =>
-                                                vote(
-                                                    option.id,
-                                                )
-                                            }
-                                        >
-                                            <span
-                                                className={
-                                                    styles.optionNumber
-                                                }
-                                            >
-                                                {String(
-                                                    index
-                                                    + 1,
-                                                ).padStart(
-                                                    2,
-                                                    '0',
-                                                )}
-                                            </span>
+                                    (option, index) => {
+                                        const optionTeam =
+                                            getTeamForOption(
+                                                sportsEvent,
+                                                option.label,
+                                            );
 
-                                            <span
-                                                className={
-                                                    styles.optionName
+                                        return (
+                                            <button
+                                                key={option.id}
+                                                type="button"
+                                                className={styles.voteOption}
+                                                disabled={voting}
+                                                onClick={() =>
+                                                    vote(option.id)
                                                 }
                                             >
-                                                {
-                                                    option.label
-                                                }
-                                            </span>
+                                                <span
+                                                    className={
+                                                        styles.optionIdentity
+                                                    }
+                                                >
+                                                    <span
+                                                        className={
+                                                            styles.optionNumber
+                                                        }
+                                                    >
+                                                        {String(
+                                                            index + 1,
+                                                        ).padStart(
+                                                            2,
+                                                            '0',
+                                                        )}
+                                                    </span>
 
-                                            <span
-                                                className={
-                                                    styles.optionAction
-                                                }
-                                            >
-                                                {voting
-                                                    ? 'Registrando...'
-                                                    : 'Selecionar →'}
-                                            </span>
-                                        </button>
-                                    ),
+                                                    {optionTeam && (
+                                                        <TeamLogo
+                                                            name={
+                                                                optionTeam.name
+                                                            }
+                                                            logo={
+                                                                optionTeam.logo
+                                                            }
+                                                            compact
+                                                        />
+                                                    )}
+
+                                                    <span
+                                                        className={
+                                                            styles.optionName
+                                                        }
+                                                    >
+                                                        {option.label}
+                                                    </span>
+                                                </span>
+
+                                                <span
+                                                    className={
+                                                        styles.optionAction
+                                                    }
+                                                >
+                                                    {voting
+                                                        ? 'Registrando...'
+                                                        : 'Selecionar →'}
+                                                </span>
+                                            </button>
+                                        );
+                                    },
                                 )}
                             </div>
                         )}
 
                         {error && (
-                            <div
-                                className={
-                                    styles.error
-                                }
-                            >
+                            <div className={styles.error}>
                                 {error}
                             </div>
                         )}
                     </section>
 
                     <aside className={styles.sidebar}>
-                        <span
-                            className={
-                                styles.sidebarEyebrow
-                            }
-                        >
-                            LIVE DATA
+                        <span className={styles.sidebarEyebrow}>
+                            TEMPO REAL
                         </span>
 
-                        <h3>
-                            Visão da votação
-                        </h3>
+                        <h3>Visão da votação</h3>
 
-                        {showResults
-                            && resultSummary && (
-                                <div
-                                    className={
-                                        styles.consensus
-                                    }
-                                >
-                                    <span>
-                                        LIDERANÇA
-                                    </span>
-
-                                    <strong>
-                                        {
-                                            resultSummary.label
-                                        }
-                                    </strong>
-
-                                    {resultSummary.label
-                                    !== 'Empate' && (
-                                        <small>
-                                            {
-                                                resultSummary.percentage
-                                            }
-                                            % da
-                                            comunidade
-                                        </small>
-                                    )}
-                                </div>
-                            )}
-
-                        {!showResults && (
-                            <div
-                                className={
-                                    styles.lockedResult
-                                }
-                            >
-                                <div>◉</div>
-
+                        {sportsEvent && (
+                            <div className={styles.sidebarEvent}>
+                                <span>EVENTO</span>
                                 <strong>
-                                    Resultado
-                                    protegido
+                                    {sportsEvent.home_team?.name}
+                                    {' × '}
+                                    {sportsEvent.away_team?.name}
+                                </strong>
+                                <small>
+                                    {sportsEvent.league}
+                                    {' · '}
+                                    {getEventStatusLabel(
+                                        sportsEvent.status,
+                                    )}
+                                </small>
+                            </div>
+                        )}
+
+                        {showResults && resultSummary && (
+                            <div className={styles.consensus}>
+                                <span>LIDERANÇA</span>
+                                <strong>
+                                    {resultSummary.label}
                                 </strong>
 
+                                {resultSummary.label !== 'Empate' && (
+                                    <small>
+                                        {resultSummary.percentage}% da
+                                        comunidade
+                                    </small>
+                                )}
+                            </div>
+                        )}
+
+                        {!showResults && (
+                            <div className={styles.lockedResult}>
+                                <div>◉</div>
+                                <strong>Resultado protegido</strong>
                                 <span>
-                                    Vote antes de
-                                    visualizar a opinião
+                                    Vote antes de visualizar a opinião
                                     da comunidade.
                                 </span>
                             </div>
                         )}
 
-                        <div
-                            className={
-                                styles.sidebarMetrics
-                            }
-                        >
+                        <div className={styles.sidebarMetrics}>
                             <div>
-                                <span>
-                                    Conexão
-                                </span>
-
+                                <span>Conexão</span>
                                 <strong>
-                                    {socketStatus
-                                    === 'connected'
+                                    {socketStatus === 'connected'
                                         ? 'Online'
                                         : 'Reconectando'}
                                 </strong>
                             </div>
 
                             <div>
-                                <span>
-                                    Enquete
-                                </span>
-
-                                <strong>
-                                    #{poll.id}
-                                </strong>
+                                <span>Enquete</span>
+                                <strong>#{poll.id}</strong>
                             </div>
 
                             <div>
-                                <span>
-                                    Atualização
-                                </span>
-
-                                <strong>
-                                    WebSocket
-                                </strong>
+                                <span>Sincronização</span>
+                                <strong>Tempo real</strong>
                             </div>
                         </div>
 
                         <button
                             type="button"
-                            className={
-                                styles.copyButton
-                            }
+                            className={styles.copyButton}
                             onClick={copyLink}
                         >
                             {copied
