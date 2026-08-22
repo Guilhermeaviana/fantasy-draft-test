@@ -28,6 +28,12 @@ class StorePollRequest extends FormRequest
                 'min:1',
                 'max:1440',
             ],
+            'sports_event_id' => [
+                'nullable',
+                'integer',
+                'exists:sports_events,id',
+            ],
         ];
+
     }
 }

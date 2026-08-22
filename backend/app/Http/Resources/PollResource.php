@@ -17,26 +17,71 @@ class PollResource extends JsonResource
 
         return [
             'id' => $this->id,
-            'question' => $this->question,
-            'status' => $this->isClosed() ? 'closed' : 'open',
-            'closes_at' => $this->closes_at?->toISOString(),
-            'created_at' => $this->created_at?->toISOString(),
-            'total_votes' => $totalVotes,
-            'has_voted' => $viewerVote !== null,
-            'my_vote_option_id' => $viewerVote?->poll_option_id,
-            'options' => $this->options->map(function ($option) use ($totalVotes) {
-                $votes = (int) $option->votes_count;
 
-                return [
-                    'id' => $option->id,
-                    'label' => $option->label,
-                    'position' => $option->position,
-                    'votes' => $votes,
-                    'percentage' => $totalVotes === 0
-                        ? 0
-                        : round(($votes / $totalVotes) * 100, 1),
-                ];
-            })->values(),
+            'question' => $this->question,
+
+            'status' => $this->isClosed()
+                ? 'closed'
+                : 'open',
+
+            'closes_at' =>
+                $this->closes_at?->toISOString(),
+
+            'created_at' =>
+                $this->created_at?->toISOString(),
+
+            'total_votes' => $totalVotes,
+
+            'has_voted' =>
+                $viewerVote !== null,
+
+            'my_vote_option_id' =>
+                $viewerVote?->poll_option_id,
+
+            'sports_event' =>
+                $this->sportsEvent
+                    ? new SportsEventResource(
+                        $this->sportsEvent,
+                    )
+                    : null,
+
+            'options' =>
+                $this->options
+                    ->map(
+                        function ($option) use (
+                            $totalVotes,
+                        ) {
+                            $votes =
+                                (int) $option
+                                    ->votes_count;
+
+                            return [
+                                'id' =>
+                                    $option->id,
+
+                                'label' =>
+                                    $option->label,
+
+                                'position' =>
+                                    $option->position,
+
+                                'votes' =>
+                                    $votes,
+
+                                'percentage' =>
+                                    $totalVotes === 0
+                                        ? 0
+                                        : round(
+                                            (
+                                                $votes
+                                                / $totalVotes
+                                            ) * 100,
+                                            1,
+                                        ),
+                            ];
+                        },
+                    )
+                    ->values(),
         ];
     }
 }

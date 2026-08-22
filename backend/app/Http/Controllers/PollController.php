@@ -12,44 +12,78 @@ use Illuminate\Support\Facades\DB;
 
 class PollController extends Controller
 {
-    public function index(Request $request): AnonymousResourceCollection
-    {
+    public function index(
+        Request $request,
+    ): AnonymousResourceCollection {
         $polls = Poll::query()
-            ->withViewerState($request->user()->id)
+            ->withViewerState(
+                $request->user()->id,
+            )
             ->latest()
             ->get();
 
-        return PollResource::collection($polls);
+        return PollResource::collection(
+            $polls,
+        );
     }
 
-    public function store(StorePollRequest $request): JsonResponse
-    {
+    public function store(
+        StorePollRequest $request,
+    ): JsonResponse {
         $data = $request->validated();
 
-        $poll = DB::transaction(function () use ($request, $data) {
-            $poll = Poll::create([
-                'created_by' => $request->user()->id,
-                'question' => $data['question'],
-                'closes_at' => isset($data['duration_minutes'])
-                    ? now()->addMinutes($data['duration_minutes'])
-                    : null,
-            ]);
+        $poll = DB::transaction(
+            function () use ($request, $data) {
+                $poll = Poll::create([
+                    'created_by' =>
+                        $request->user()->id,
 
-            $options = collect($data['options'])
-                ->values()
-                ->map(fn (string $label, int $position) => [
-                    'label' => $label,
-                    'position' => $position,
-                ])
-                ->all();
+                    'sports_event_id' =>
+                        $data['sports_event_id']
+                        ?? null,
 
-            $poll->options()->createMany($options);
+                    'question' =>
+                        $data['question'],
 
-            return $poll;
-        });
+                    'closes_at' =>
+                        isset(
+                            $data['duration_minutes'],
+                        )
+                            ? now()->addMinutes(
+                                $data[
+                                    'duration_minutes'
+                                ],
+                            )
+                            : null,
+                ]);
+
+                $options = collect(
+                    $data['options'],
+                )
+                    ->values()
+                    ->map(
+                        fn (
+                            string $label,
+                            int $position,
+                        ) => [
+                            'label' => $label,
+                            'position' => $position,
+                        ],
+                    )
+                    ->all();
+
+                $poll
+                    ->options()
+                    ->createMany($options);
+
+                return $poll;
+            },
+        );
 
         $poll = Poll::query()
-            ->withViewerState($request->user()->id)
+            ->withViewerState(
+                $request->user()->id,
+            )
             ->findOrFail($poll->id);
 
         return (new PollResource($poll))
@@ -57,10 +91,14 @@ class PollController extends Controller
             ->setStatusCode(201);
     }
 
-    public function show(Request $request, Poll $poll): PollResource
-    {
+    public function show(
+        Request $request,
+        Poll $poll,
+    ): PollResource {
         $poll = Poll::query()
-            ->withViewerState($request->user()->id)
+            ->withViewerState(
+                $request->user()->id,
+            )
             ->findOrFail($poll->id);
 
         return new PollResource($poll);

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Poll;
+use App\Models\SportsEvent;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -37,32 +38,56 @@ class PollApiTest extends TestCase
 
         $response
             ->assertCreated()
-            ->assertJsonPath('question', 'Quem vence hoje?')
-            ->assertJsonPath('status', 'open')
-            ->assertJsonPath('total_votes', 0)
-            ->assertJsonCount(2, 'options');
+            ->assertJsonPath(
+                'question',
+                'Quem vence hoje?',
+            )
+            ->assertJsonPath(
+                'status',
+                'open',
+            )
+            ->assertJsonPath(
+                'total_votes',
+                0,
+            )
+            ->assertJsonCount(
+                2,
+                'options',
+            );
 
-        $this->assertArrayNotHasKey('data', $response->json());
+        $this->assertArrayNotHasKey(
+            'data',
+            $response->json(),
+        );
 
         $pollId = $response->json('id');
 
-        $this->assertDatabaseHas('polls', [
-            'id' => $pollId,
-            'created_by' => $user->id,
-            'question' => 'Quem vence hoje?',
-        ]);
+        $this->assertDatabaseHas(
+            'polls',
+            [
+                'id' => $pollId,
+                'created_by' => $user->id,
+                'question' => 'Quem vence hoje?',
+            ],
+        );
 
-        $this->assertDatabaseHas('poll_options', [
-            'poll_id' => $pollId,
-            'label' => 'Raiders',
-            'position' => 0,
-        ]);
+        $this->assertDatabaseHas(
+            'poll_options',
+            [
+                'poll_id' => $pollId,
+                'label' => 'Raiders',
+                'position' => 0,
+            ],
+        );
 
-        $this->assertDatabaseHas('poll_options', [
-            'poll_id' => $pollId,
-            'label' => 'Texans',
-            'position' => 1,
-        ]);
+        $this->assertDatabaseHas(
+            'poll_options',
+            [
+                'poll_id' => $pollId,
+                'label' => 'Texans',
+                'position' => 1,
+            ],
+        );
     }
 
     public function test_poll_requires_at_least_two_options(): void
@@ -84,7 +109,10 @@ class PollApiTest extends TestCase
                 'options',
             ]);
 
-        $this->assertDatabaseCount('polls', 0);
+        $this->assertDatabaseCount(
+            'polls',
+            0,
+        );
     }
 
     public function test_poll_rejects_duplicate_options_ignoring_case(): void
@@ -107,7 +135,10 @@ class PollApiTest extends TestCase
                 'options.1',
             ]);
 
-        $this->assertDatabaseCount('polls', 0);
+        $this->assertDatabaseCount(
+            'polls',
+            0,
+        );
     }
 
     public function test_authenticated_guest_can_list_polls_without_data_wrapper(): void
@@ -139,10 +170,19 @@ class PollApiTest extends TestCase
         $response
             ->assertOk()
             ->assertJsonCount(1)
-            ->assertJsonPath('0.question', 'Raiders ou Texans?');
+            ->assertJsonPath(
+                '0.question',
+                'Raiders ou Texans?',
+            );
 
-        $this->assertIsArray($response->json());
-        $this->assertArrayNotHasKey('data', $response->json());
+        $this->assertIsArray(
+            $response->json(),
+        );
+
+        $this->assertArrayNotHasKey(
+            'data',
+            $response->json(),
+        );
     }
 
     public function test_authenticated_guest_can_view_poll(): void
@@ -169,10 +209,119 @@ class PollApiTest extends TestCase
 
         $this
             ->actingAs($user, 'sanctum')
-            ->getJson("/api/polls/{$poll->id}")
+            ->getJson(
+                "/api/polls/{$poll->id}",
+            )
             ->assertOk()
-            ->assertJsonPath('id', $poll->id)
-            ->assertJsonPath('question', 'Qual será o resultado?')
-            ->assertJsonCount(2, 'options');
+            ->assertJsonPath(
+                'id',
+                $poll->id,
+            )
+            ->assertJsonPath(
+                'question',
+                'Qual será o resultado?',
+            )
+            ->assertJsonCount(
+                2,
+                'options',
+            );
+    }
+
+    public function test_authenticated_guest_can_create_poll_linked_to_sports_event(): void
+    {
+        $user = User::create([
+            'is_guest' => true,
+        ]);
+
+        $event = SportsEvent::create([
+            'provider' => 'fake-provider',
+            'external_id' => 'mlb-001',
+            'sport' => 'Baseball',
+            'league' => 'MLB',
+            'starts_at' => '2026-08-21T23:10:00Z',
+            'status' => 'scheduled',
+            'home_team' => 'Miami Marlins',
+            'away_team' => 'Washington Nationals',
+
+            'home_team_logo' =>
+                'https://example.com/marlins.png',
+
+            'away_team_logo' =>
+                'https://example.com/nationals.png',
+        ]);
+
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->postJson('/api/polls', [
+                'sports_event_id' => $event->id,
+
+                'question' =>
+                    'Quem vence o confronto?',
+
+                'options' => [
+                    'Miami Marlins',
+                    'Washington Nationals',
+                ],
+
+                'duration_minutes' => 30,
+            ]);
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath(
+                'sports_event.id',
+                $event->id,
+            )
+            ->assertJsonPath(
+                'sports_event.sport',
+                'Baseball',
+            )
+            ->assertJsonPath(
+                'sports_event.league',
+                'MLB',
+            )
+            ->assertJsonPath(
+                'sports_event.home_team.name',
+                'Miami Marlins',
+            )
+            ->assertJsonPath(
+                'sports_event.away_team.name',
+                'Washington Nationals',
+            );
+
+        $this->assertDatabaseHas(
+            'polls',
+            [
+                'sports_event_id' => $event->id,
+
+                'question' =>
+                    'Quem vence o confronto?',
+            ],
+        );
+    }
+
+    public function test_poll_rejects_unknown_sports_event(): void
+    {
+        $user = User::create([
+            'is_guest' => true,
+        ]);
+
+        $this
+            ->actingAs($user, 'sanctum')
+            ->postJson('/api/polls', [
+                'sports_event_id' => 999999,
+
+                'question' =>
+                    'Quem vence?',
+
+                'options' => [
+                    'Time A',
+                    'Time B',
+                ],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'sports_event_id',
+            ]);
     }
 }

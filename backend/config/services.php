@@ -40,4 +40,15 @@ return [
     'secret' => env('REALTIME_INTERNAL_SECRET'),
     ],
 
+    'sportsdb' => [
+    'base_url' => env(
+        'SPORTSDB_BASE_URL',
+        'https://www.thesportsdb.com/api/v1/json',
+    ),
+
+    'api_key' => env(
+        'SPORTSDB_API_KEY',
+        '123',
+    ),
+    ],
 ];
