@@ -62,7 +62,7 @@ export default function AppHeader() {
                                 styles.navItem
                             }
                         >
-                            Ao vivo
+                            Em votação
                         </a>
 
                         <a

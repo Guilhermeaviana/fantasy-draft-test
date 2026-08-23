@@ -159,8 +159,10 @@ export default function CreatePollModal({
                         {
                             params: {
                                 date: getLocalDate(),
+                                days: 7,
                                 sport:
                                     selectedSport,
+                                eligible_for_poll: 1,
                             },
                         },
                     );
@@ -552,7 +554,7 @@ export default function CreatePollModal({
                             >
                                 <div>
                                     <span>
-                                        EVENTOS DE HOJE
+                                        PRÓXIMOS EVENTOS
                                     </span>
 
                                     <strong>
@@ -662,13 +664,14 @@ export default function CreatePollModal({
                                         </span>
 
                                         <strong>
-                                            Nenhum evento
-                                            encontrado
+                                            Nenhuma partida
+                                            disponível
                                         </strong>
 
                                         <span>
-                                            Tente outro
-                                            esporte.
+                                            Não encontramos eventos
+                                            elegíveis nos próximos
+                                            7 dias.
                                         </span>
                                     </div>
                                 )}

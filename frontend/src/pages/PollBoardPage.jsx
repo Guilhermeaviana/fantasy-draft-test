@@ -7,7 +7,9 @@ import {
 import api from '../api/client';
 
 import CreatePollModal from '../components/CreatePollModal';
+import LiveSportsSection from '../components/LiveSportsSection';
 import PollCard from '../components/PollCard';
+import ProductHero from '../components/ProductHero';
 
 import styles from './PollBoardPage.module.css';
 
@@ -23,8 +25,8 @@ const filters = [
         label: 'Todas',
     },
     {
-        id: 'live',
-        label: 'Ao vivo',
+        id: 'open',
+        label: 'Em votação',
     },
     {
         id: 'closed',
@@ -91,22 +93,27 @@ export default function PollBoardPage() {
     }, []);
 
     const filteredPolls = useMemo(() => {
-        if (activeFilter === 'live') {
+        if (activeFilter === 'open') {
             return polls.filter(
-                (poll) => poll.status === 'open',
+                (poll) =>
+                    poll.status === 'open',
             );
         }
 
         if (activeFilter === 'closed') {
             return polls.filter(
-                (poll) => poll.status === 'closed',
+                (poll) =>
+                    poll.status === 'closed',
             );
         }
 
         return polls;
-    }, [polls, activeFilter]);
+    }, [
+        polls,
+        activeFilter,
+    ]);
 
-    const liveCount = polls.filter(
+    const openCount = polls.filter(
         (poll) => poll.status === 'open',
     ).length;
 
@@ -121,46 +128,25 @@ export default function PollBoardPage() {
 
     return (
         <main className={styles.page}>
-            <section className={styles.hero}>
-                <div className={styles.heroContent}>
-                    <div className={styles.eyebrow}>
-                        <span className={styles.liveDot} />
+            <ProductHero
+                onCreatePoll={() =>
+                    setModalOpen(true)
+                }
+            />
 
-                        LIVE POLLS
-                    </div>
-
-                    <h1>
-                        A opinião muda.
-                        <br />
-                        O placar acompanha.
-                    </h1>
-
-                    <p>
-                        Crie enquetes esportivas,
-                        participe de votações e
-                        acompanhe o consenso da
-                        comunidade se formar em tempo
-                        real.
-                    </p>
-                </div>
-
-                <button
-                    type="button"
-                    className={styles.createButton}
-                    onClick={() =>
-                        setModalOpen(true)
-                    }
-                >
-                    <span>+</span>
-                    Criar enquete
-                </button>
-            </section>
+            <LiveSportsSection />
 
             <section
-                className={styles.pollSection}
+                className={
+                    styles.pollSection
+                }
                 id="live-polls"
             >
-                <div className={styles.toolbar}>
+                <div
+                    className={
+                        styles.toolbar
+                    }
+                >
                     <div>
                         <span
                             className={
@@ -178,14 +164,16 @@ export default function PollBoardPage() {
                             <h2>Enquetes</h2>
 
                             <span>
-                                {liveCount} ao vivo
+                                {openCount} em votação
                             </span>
                         </div>
                     </div>
 
                     <button
                         type="button"
-                        className={styles.refresh}
+                        className={
+                            styles.refresh
+                        }
                         onClick={loadPolls}
                         disabled={loading}
                     >
@@ -195,7 +183,11 @@ export default function PollBoardPage() {
                     </button>
                 </div>
 
-                <div className={styles.filters}>
+                <div
+                    className={
+                        styles.filters
+                    }
+                >
                     {filters.map((filter) => (
                         <button
                             key={filter.id}
@@ -214,37 +206,46 @@ export default function PollBoardPage() {
                         >
                             {filter.label}
 
-                            {filter.id === 'live'
-                                && liveCount > 0 && (
+                            {filter.id === 'open'
+                                && openCount > 0 && (
                                     <span>
-                                        {liveCount}
+                                        {openCount}
                                     </span>
                                 )}
                         </button>
                     ))}
                 </div>
 
-                {loading && polls.length === 0 && (
-                    <div className={styles.state}>
+                {loading
+                    && polls.length === 0 && (
                         <div
                             className={
-                                styles.loader
+                                styles.state
                             }
-                        />
+                        >
+                            <div
+                                className={
+                                    styles.loader
+                                }
+                            />
 
-                        <strong>
-                            Carregando enquetes
-                        </strong>
+                            <strong>
+                                Carregando enquetes
+                            </strong>
 
-                        <span>
-                            Buscando as votações mais
-                            recentes...
-                        </span>
-                    </div>
-                )}
+                            <span>
+                                Buscando as votações mais
+                                recentes...
+                            </span>
+                        </div>
+                    )}
 
                 {!loading && error && (
-                    <div className={styles.state}>
+                    <div
+                        className={
+                            styles.state
+                        }
+                    >
                         <strong>
                             Algo deu errado
                         </strong>
@@ -293,11 +294,17 @@ export default function PollBoardPage() {
 
                 {!error
                     && filteredPolls.length > 0 && (
-                        <div className={styles.grid}>
+                        <div
+                            className={
+                                styles.grid
+                            }
+                        >
                             {filteredPolls.map(
                                 (poll) => (
                                     <PollCard
-                                        key={poll.id}
+                                        key={
+                                            poll.id
+                                        }
                                         poll={poll}
                                     />
                                 ),
