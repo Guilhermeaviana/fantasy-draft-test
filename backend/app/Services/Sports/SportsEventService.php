@@ -4,6 +4,7 @@ namespace App\Services\Sports;
 
 use App\Contracts\SportsDataProvider;
 use App\Models\SportsEvent;
+use Carbon\Carbon;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -45,6 +46,43 @@ class SportsEventService
 
         return SportsEvent::query()
             ->whereIn('id', $ids)
+            ->orderBy('starts_at')
+            ->get();
+    }
+
+    public function syncForDateRange(
+        DateTimeInterface $startDate,
+        int $days,
+        ?string $sport = null,
+    ): Collection {
+        $ids = collect();
+
+        $date = Carbon::instance(
+            $startDate,
+        );
+
+        for (
+            $offset = 0;
+            $offset < $days;
+            $offset++
+        ) {
+            $events = $this->syncForDate(
+                $date
+                    ->copy()
+                    ->addDays($offset),
+                $sport,
+            );
+
+            $ids = $ids->merge(
+                $events->modelKeys(),
+            );
+        }
+
+        return SportsEvent::query()
+            ->whereIn(
+                'id',
+                $ids->unique()->values(),
+            )
             ->orderBy('starts_at')
             ->get();
     }

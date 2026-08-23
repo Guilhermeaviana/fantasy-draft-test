@@ -20,10 +20,24 @@ class SportsEventController extends Controller
                 'nullable',
                 'date_format:Y-m-d',
             ],
+            'days' => [
+                'nullable',
+                'integer',
+                'min:1',
+                'max:7',
+            ],
             'sport' => [
                 'nullable',
                 'string',
                 'max:100',
+            ],
+            'status' => [
+                'nullable',
+                'in:scheduled,live,finished,postponed',
+            ],
+            'eligible_for_poll' => [
+                'nullable',
+                'boolean',
             ],
         ]);
 
@@ -35,10 +49,32 @@ class SportsEventController extends Controller
             )
             : now('UTC');
 
-        $events = $service->syncForDate(
+        $events = $service->syncForDateRange(
             $date,
+            $validated['days'] ?? 1,
             $validated['sport'] ?? null,
         );
+
+        if (isset($validated['status'])) {
+            $events = $events
+                ->where(
+                    'status',
+                    $validated['status'],
+                )
+                ->values();
+        }
+
+        if ($request->boolean('eligible_for_poll')) {
+            $events = $events
+                ->whereIn(
+                    'status',
+                    [
+                        'scheduled',
+                        'live',
+                    ],
+                )
+                ->values();
+        }
 
         return SportsEventResource::collection(
             $events,

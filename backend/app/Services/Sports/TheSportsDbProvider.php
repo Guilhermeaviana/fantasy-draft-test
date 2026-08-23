@@ -178,7 +178,7 @@ class TheSportsDbProvider implements SportsDataProvider
 
             'venue' =>
                 $event['strVenue']
-                ?: null,
+                ?? null,
         ];
     }
 
@@ -215,71 +215,116 @@ class TheSportsDbProvider implements SportsDataProvider
     }
 
     private function normalizeStatus(
-        array $event,
-    ): string {
-        if (
-            ($event['strPostponed'] ?? null)
-            === 'yes'
-        ) {
-            return 'postponed';
-        }
+    array $event,
+): string {
+    if (
+        ($event['strPostponed'] ?? null)
+        === 'yes'
+    ) {
+        return 'postponed';
+    }
 
-        $status = strtoupper(
-            trim(
-                (string) (
-                    $event['strStatus']
-                    ?? ''
-                ),
+    $status = strtoupper(
+        trim(
+            (string) (
+                $event['strStatus']
+                ?? ''
             ),
-        );
+        ),
+    );
 
-        if (
-            in_array(
-                $status,
-                [
-                    'FT',
-                    'AET',
-                    'FINISHED',
-                    'FINAL',
-                ],
-                true,
-            )
-        ) {
-            return 'finished';
-        }
+    if (
+        in_array(
+            $status,
+            [
+                'FT',
+                'AET',
+                'AOT',
+                'PEN',
+                'FINISHED',
+                'FINAL',
+                'AWD',
+                'WO',
+            ],
+            true,
+        )
+    ) {
+        return 'finished';
+    }
 
-        if (
-            in_array(
-                $status,
-                [
-                    'LIVE',
-                    'IN PLAY',
-                    '1H',
-                    '2H',
-                    'HT',
-                ],
-                true,
-            )
-        ) {
-            return 'live';
-        }
+    if (
+        in_array(
+            $status,
+            [
+                'LIVE',
+                'IN PLAY',
 
-        $homeScore =
-            $event['intHomeScore']
-            ?? null;
+                // Futebol
+                '1H',
+                '2H',
+                'HT',
+                'ET',
+                'P',
+                'BT',
 
-        $awayScore =
-            $event['intAwayScore']
-            ?? null;
+                // Basquete
+                'Q1',
+                'Q2',
+                'Q3',
+                'Q4',
+                'OT',
 
-        if (
-            $homeScore !== null
-            && $awayScore !== null
-        ) {
-            return 'finished';
-        }
+                // Baseball
+                'IN1',
+                'IN2',
+                'IN3',
+                'IN4',
+                'IN5',
+                'IN6',
+                'IN7',
+                'IN8',
+                'IN9',
+            ],
+            true,
+        )
+    ) {
+        return 'live';
+    }
 
-        return 'scheduled';
+    if (
+        in_array(
+            $status,
+            [
+                'PST',
+                'POST',
+                'CANC',
+                'SUSP',
+                'INT',
+                'INTR',
+                'ABD',
+            ],
+            true,
+        )
+    ) {
+        return 'postponed';
+    }
+
+    $homeScore =
+        $event['intHomeScore']
+        ?? null;
+
+    $awayScore =
+        $event['intAwayScore']
+        ?? null;
+
+    if (
+        $homeScore !== null
+        && $awayScore !== null
+    ) {
+        return 'finished';
+    }
+
+    return 'scheduled';
     }
 
     private function nullableInteger(
