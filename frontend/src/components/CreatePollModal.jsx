@@ -100,19 +100,50 @@ function TeamLogo({
     );
 }
 
+function buildQuestion(homeTeam, awayTeam) {
+    return `Quem vence ${homeTeam} x ${awayTeam}?`;
+}
+
 export default function CreatePollModal({
     open,
     onClose,
     onCreated,
+    initialSportsEvent = null,
 }) {
     const [mode, setMode] =
-        useState('free');
+    useState(
+        initialSportsEvent
+            ? 'sports'
+            : 'free',
+    );
 
     const [question, setQuestion] =
-        useState('');
+        useState(
+            initialSportsEvent
+                ? buildQuestion(
+                    initialSportsEvent
+                        .home_team
+                        .name,
+                    initialSportsEvent
+                        .away_team
+                        .name,
+                )
+                : '',
+        );
 
     const [options, setOptions] =
-        useState(['', '']);
+        useState(
+            initialSportsEvent
+                ? [
+                    initialSportsEvent
+                        .home_team
+                        .name,
+                    initialSportsEvent
+                        .away_team
+                        .name,
+                ]
+                : ['', ''],
+        );
 
     const [duration, setDuration] =
         useState('15');
@@ -124,19 +155,64 @@ export default function CreatePollModal({
         useState('');
 
     const [selectedSport, setSelectedSport] =
-        useState('Soccer');
+    useState(
+        initialSportsEvent?.sport
+        ?? 'Soccer',
+    );
 
     const [sportsEvents, setSportsEvents] =
-        useState([]);
+        useState(
+            initialSportsEvent
+                ? [initialSportsEvent]
+                : [],
+        );
 
     const [selectedEventId, setSelectedEventId] =
-        useState(null);
+        useState(
+            initialSportsEvent?.id
+            ?? null,
+        );
 
     const [eventsLoading, setEventsLoading] =
         useState(false);
 
     const [eventsError, setEventsError] =
         useState('');
+
+    const applySportsEvent = (
+        sportsEvent,
+    ) => {
+        if (!sportsEvent) {
+            return;
+        }
+
+        const homeTeam =
+            sportsEvent.home_team.name;
+        const awayTeam =
+            sportsEvent.away_team.name;
+
+        setMode('sports');
+        setSelectedSport(
+            sportsEvent.sport
+            ?? 'Soccer',
+        );
+        setSelectedEventId(
+            sportsEvent.id,
+        );
+        setQuestion(
+            buildQuestion(
+                homeTeam,
+                awayTeam,
+            ),
+        );
+        setOptions([
+            homeTeam,
+            awayTeam,
+        ]);
+        setError('');
+    };
+
+
 
     useEffect(() => {
         if (
@@ -178,7 +254,23 @@ export default function CreatePollModal({
                         ? response.data
                         : [];
 
-                setSportsEvents(events);
+                if (
+                    initialSportsEvent
+                    && initialSportsEvent.sport
+                        === selectedSport
+                    && !events.some(
+                        (event) =>
+                            event.id
+                            === initialSportsEvent.id,
+                    )
+                ) {
+                    setSportsEvents([
+                        initialSportsEvent,
+                        ...events,
+                    ]);
+                } else {
+                    setSportsEvents(events);
+                }
             } catch {
                 if (!active) {
                     return;
@@ -205,6 +297,7 @@ export default function CreatePollModal({
         open,
         mode,
         selectedSport,
+        initialSportsEvent,
     ]);
 
     const selectedEvent = useMemo(
@@ -219,6 +312,16 @@ export default function CreatePollModal({
             selectedEventId,
         ],
     );
+
+    const resolvedSelectedEvent =
+        selectedEvent
+        ?? (
+            initialSportsEvent
+            && initialSportsEvent.id
+                === selectedEventId
+                ? initialSportsEvent
+                : null
+        );
 
     if (!open) {
         return null;
@@ -274,26 +377,9 @@ export default function CreatePollModal({
             return;
         }
 
-        const homeTeam =
-            sportsEvent.home_team.name;
-
-        const awayTeam =
-            sportsEvent.away_team.name;
-
-        setSelectedEventId(
-            sportsEvent.id,
+        applySportsEvent(
+            sportsEvent,
         );
-
-        setQuestion(
-            `Quem vence ${homeTeam} x ${awayTeam}?`,
-        );
-
-        setOptions([
-            homeTeam,
-            awayTeam,
-        ]);
-
-        setError('');
     };
 
     const updateOption = (
@@ -342,7 +428,7 @@ export default function CreatePollModal({
 
         if (
             mode === 'sports'
-            && !selectedEvent
+            && !resolvedSelectedEvent
         ) {
             setError(
                 'Selecione um evento esportivo antes de criar a enquete.',
@@ -377,10 +463,8 @@ export default function CreatePollModal({
             const payload = {
                 question:
                     question.trim(),
-
                 options:
                     normalizedOptions,
-
                 duration_minutes:
                     duration === ''
                         ? null
@@ -391,10 +475,10 @@ export default function CreatePollModal({
 
             if (
                 mode === 'sports'
-                && selectedEvent
+                && resolvedSelectedEvent
             ) {
                 payload.sports_event_id =
-                    selectedEvent.id;
+                    resolvedSelectedEvent.id;
             }
 
             const response =
@@ -429,11 +513,7 @@ export default function CreatePollModal({
                     event.stopPropagation()
                 }
             >
-                <div
-                    className={
-                        styles.heading
-                    }
-                >
+                <div className={styles.heading}>
                     <div>
                         <span>
                             NOVA ENQUETE
@@ -444,20 +524,20 @@ export default function CreatePollModal({
                         </h2>
 
                         <p>
-                            Publique uma enquete livre
-                            ou conecte a votação a um
-                            evento esportivo real.
+                            Publique uma
+                            enquete livre
+                            ou conecte a
+                            votação a um
+                            evento
+                            esportivo
+                            real.
                         </p>
                     </div>
 
                     <button
                         type="button"
-                        className={
-                            styles.close
-                        }
-                        onClick={
-                            closeModal
-                        }
+                        className={styles.close}
+                        onClick={closeModal}
                         aria-label="Fechar modal"
                     >
                         ×
@@ -465,9 +545,7 @@ export default function CreatePollModal({
                 </div>
 
                 <form
-                    onSubmit={
-                        handleSubmit
-                    }
+                    onSubmit={handleSubmit}
                 >
                     <div
                         className={
@@ -497,11 +575,13 @@ export default function CreatePollModal({
 
                             <span>
                                 <strong>
-                                    Enquete livre
+                                    Enquete
+                                    livre
                                 </strong>
 
                                 <small>
-                                    Crie qualquer
+                                    Crie
+                                    qualquer
                                     votação
                                 </small>
                             </span>
@@ -531,11 +611,14 @@ export default function CreatePollModal({
 
                             <span>
                                 <strong>
-                                    Evento esportivo
+                                    Evento
+                                    esportivo
                                 </strong>
 
                                 <small>
-                                    Use partidas reais
+                                    Use
+                                    partidas
+                                    reais
                                 </small>
                             </span>
                         </button>
@@ -554,11 +637,13 @@ export default function CreatePollModal({
                             >
                                 <div>
                                     <span>
-                                        PRÓXIMOS EVENTOS
+                                        PRÓXIMOS
+                                        EVENTOS
                                     </span>
 
                                     <strong>
-                                        Escolha uma
+                                        Escolha
+                                        uma
                                         partida
                                     </strong>
                                 </div>
@@ -623,12 +708,14 @@ export default function CreatePollModal({
                                     />
 
                                     <strong>
-                                        Buscando eventos
+                                        Buscando
+                                        eventos
                                     </strong>
 
                                     <span>
-                                        Atualizando os
-                                        jogos disponíveis...
+                                        Atualizando
+                                        os jogos
+                                        disponíveis...
                                     </span>
                                 </div>
                             )}
@@ -664,13 +751,18 @@ export default function CreatePollModal({
                                         </span>
 
                                         <strong>
-                                            Nenhuma partida
+                                            Nenhuma
+                                            partida
                                             disponível
                                         </strong>
 
                                         <span>
-                                            Não encontramos eventos
-                                            elegíveis nos próximos
+                                            Não
+                                            encontramos
+                                            eventos
+                                            elegíveis
+                                            nos
+                                            próximos
                                             7 dias.
                                         </span>
                                     </div>
@@ -730,22 +822,14 @@ export default function CreatePollModal({
                                                             <span>
                                                                 {
                                                                     sportsEvent.league
-                                                                    ?? sportsEvent.sport
                                                                 }
                                                             </span>
 
-                                                            <span>
-                                                                {
-                                                                    disabled
-                                                                        ? sportsEvent.status
-                                                                        === 'finished'
-                                                                            ? 'FINALIZADO'
-                                                                            : 'ADIADO'
-                                                                        : formatEventDate(
-                                                                            sportsEvent.starts_at,
-                                                                        )
-                                                                }
-                                                            </span>
+                                                            <strong>
+                                                                {formatEventDate(
+                                                                    sportsEvent.starts_at,
+                                                                )}
+                                                            </strong>
                                                         </div>
 
                                                         <div
@@ -812,7 +896,8 @@ export default function CreatePollModal({
                                                                     styles.selectedLabel
                                                                 }
                                                             >
-                                                                ✓ EVENTO
+                                                                ✓
+                                                                EVENTO
                                                                 SELECIONADO
                                                             </span>
                                                         )}
@@ -826,25 +911,26 @@ export default function CreatePollModal({
                     )}
 
                     {mode === 'sports'
-                        && selectedEvent && (
+                        && resolvedSelectedEvent && (
                             <div
                                 className={
                                     styles.selectedEventSummary
                                 }
                             >
                                 <span>
-                                    EVENTO VINCULADO
+                                    EVENTO
+                                    VINCULADO
                                 </span>
 
                                 <strong>
                                     {
-                                        selectedEvent
+                                        resolvedSelectedEvent
                                             .home_team
                                             .name
                                     }
                                     {' × '}
                                     {
-                                        selectedEvent
+                                        resolvedSelectedEvent
                                             .away_team
                                             .name
                                     }
@@ -852,21 +938,17 @@ export default function CreatePollModal({
 
                                 <small>
                                     {
-                                        selectedEvent.league
+                                        resolvedSelectedEvent.league
                                     }
                                     {' · '}
                                     {formatEventDate(
-                                        selectedEvent.starts_at,
+                                        resolvedSelectedEvent.starts_at,
                                     )}
                                 </small>
                             </div>
                         )}
 
-                    <label
-                        className={
-                            styles.field
-                        }
-                    >
+                    <label className={styles.field}>
                         <span>
                             Pergunta
                         </span>
@@ -897,15 +979,12 @@ export default function CreatePollModal({
                         </span>
 
                         <small>
-                            2 a 10 alternativas
+                            2 a 10
+                            alternativas
                         </small>
                     </div>
 
-                    <div
-                        className={
-                            styles.options
-                        }
-                    >
+                    <div className={styles.options}>
                         {options.map(
                             (
                                 option,
@@ -955,8 +1034,8 @@ export default function CreatePollModal({
                                         }
                                     />
 
-                                    {options.length
-                                        > 2 && (
+                                    {options.length >
+                                        2 && (
                                         <button
                                             type="button"
                                             className={
@@ -986,27 +1065,20 @@ export default function CreatePollModal({
                                 styles.addOption
                             }
                             type="button"
-                            onClick={
-                                addOption
-                            }
+                            onClick={addOption}
                         >
-                            + Adicionar opção
+                            + Adicionar
+                            opção
                         </button>
                     )}
 
-                    <label
-                        className={
-                            styles.field
-                        }
-                    >
+                    <label className={styles.field}>
                         <span>
                             Duração
                         </span>
 
                         <select
-                            value={
-                                duration
-                            }
+                            value={duration}
                             onChange={(
                                 event,
                             ) =>
@@ -1019,23 +1091,18 @@ export default function CreatePollModal({
                             <option value="1">
                                 1 minuto
                             </option>
-
                             <option value="5">
                                 5 minutos
                             </option>
-
                             <option value="15">
                                 15 minutos
                             </option>
-
                             <option value="30">
                                 30 minutos
                             </option>
-
                             <option value="60">
                                 1 hora
                             </option>
-
                             <option value="">
                                 Sem limite
                             </option>
@@ -1062,9 +1129,7 @@ export default function CreatePollModal({
                             className={
                                 styles.cancel
                             }
-                            onClick={
-                                closeModal
-                            }
+                            onClick={closeModal}
                         >
                             Cancelar
                         </button>
@@ -1079,7 +1144,7 @@ export default function CreatePollModal({
                                 || (
                                     mode
                                     === 'sports'
-                                    && !selectedEvent
+                                    && !resolvedSelectedEvent
                                 )
                             }
                         >

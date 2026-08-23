@@ -4,6 +4,11 @@ import {
     useState,
 } from 'react';
 
+import {
+    useLocation,
+    useNavigate,
+} from 'react-router-dom';
+
 import api from '../api/client';
 
 import CreatePollModal from '../components/CreatePollModal';
@@ -14,7 +19,8 @@ import ProductHero from '../components/ProductHero';
 import styles from './PollBoardPage.module.css';
 
 async function fetchPolls() {
-    const response = await api.get('/api/polls');
+    const response =
+        await api.get('/api/polls');
 
     return response.data;
 }
@@ -23,31 +29,64 @@ const filters = [
     {
         id: 'all',
         label: 'Todas',
+        hash: '',
     },
     {
         id: 'open',
         label: 'Em votação',
+        hash: '#live-polls',
     },
     {
         id: 'closed',
         label: 'Encerradas',
+        hash: '#closed-polls',
     },
 ];
 
+function getFilterFromHash(hash) {
+    if (hash === '#live-polls') {
+        return 'open';
+    }
+
+    if (hash === '#closed-polls') {
+        return 'closed';
+    }
+
+    return 'all';
+}
+
 export default function PollBoardPage() {
-    const [polls, setPolls] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    const [polls, setPolls] =
+        useState([]);
+
+    const [loading, setLoading] =
+        useState(true);
+
+    const [error, setError] =
+        useState('');
+
     const [modalOpen, setModalOpen] =
         useState(false);
-    const [activeFilter, setActiveFilter] =
-        useState('all');
+
+    const [
+        initialSportsEvent,
+        setInitialSportsEvent,
+    ] = useState(null);
+
+    const activeFilter =
+        getFilterFromHash(
+            location.hash,
+        );
 
     const loadPolls = async () => {
         setLoading(true);
 
         try {
-            const data = await fetchPolls();
+            const data =
+                await fetchPolls();
 
             setPolls(data);
             setError('');
@@ -92,30 +131,68 @@ export default function PollBoardPage() {
         };
     }, []);
 
-    const filteredPolls = useMemo(() => {
-        if (activeFilter === 'open') {
-            return polls.filter(
-                (poll) =>
-                    poll.status === 'open',
-            );
+    useEffect(() => {
+        if (
+            location.hash !== '#live-polls'
+            && location.hash !== '#closed-polls'
+        ) {
+            return;
         }
 
-        if (activeFilter === 'closed') {
-            return polls.filter(
-                (poll) =>
-                    poll.status === 'closed',
+        const frame =
+            window.requestAnimationFrame(
+                () => {
+                    document
+                        .getElementById(
+                            'polls-section',
+                        )
+                        ?.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start',
+                        });
+                },
             );
-        }
 
-        return polls;
-    }, [
-        polls,
-        activeFilter,
-    ]);
+        return () => {
+            window.cancelAnimationFrame(
+                frame,
+            );
+        };
+    }, [location.hash]);
 
-    const openCount = polls.filter(
-        (poll) => poll.status === 'open',
-    ).length;
+    const filteredPolls =
+        useMemo(() => {
+            if (
+                activeFilter === 'open'
+            ) {
+                return polls.filter(
+                    (poll) =>
+                        poll.status
+                        === 'open',
+                );
+            }
+
+            if (
+                activeFilter === 'closed'
+            ) {
+                return polls.filter(
+                    (poll) =>
+                        poll.status
+                        === 'closed',
+                );
+            }
+
+            return polls;
+        }, [
+            polls,
+            activeFilter,
+        ]);
+
+    const openCount =
+        polls.filter(
+            (poll) =>
+                poll.status === 'open',
+        ).length;
 
     const handleCreated = (poll) => {
         setPolls((current) => [
@@ -123,24 +200,68 @@ export default function PollBoardPage() {
             ...current,
         ]);
 
-        setActiveFilter('all');
+        navigate(
+            {
+                pathname: '/',
+                hash: '',
+            },
+            {
+                replace: true,
+            },
+        );
+    };
+
+    const openBlankModal = () => {
+        setInitialSportsEvent(null);
+        setModalOpen(true);
+    };
+
+    const openSportsEventModal = (
+        sportsEvent,
+    ) => {
+        setInitialSportsEvent(
+            sportsEvent,
+        );
+
+        setModalOpen(true);
+    };
+
+    const closeModal = () => {
+        setModalOpen(false);
+        setInitialSportsEvent(null);
+    };
+
+    const changeFilter = (
+        filter,
+    ) => {
+        navigate({
+            pathname: '/',
+            hash: filter.hash,
+        });
     };
 
     return (
         <main className={styles.page}>
             <ProductHero
-                onCreatePoll={() =>
-                    setModalOpen(true)
+                onCreatePoll={
+                    openBlankModal
+                }
+                onQuickCreate={
+                    openSportsEventModal
                 }
             />
 
-            <LiveSportsSection />
+            <LiveSportsSection
+                onCreatePoll={
+                    openSportsEventModal
+                }
+            />
 
             <section
                 className={
                     styles.pollSection
                 }
-                id="live-polls"
+                id="polls-section"
             >
                 <div
                     className={
@@ -161,10 +282,13 @@ export default function PollBoardPage() {
                                 styles.sectionTitle
                             }
                         >
-                            <h2>Enquetes</h2>
+                            <h2>
+                                Enquetes
+                            </h2>
 
                             <span>
-                                {openCount} em votação
+                                {openCount}{' '}
+                                em votação
                             </span>
                         </div>
                     </div>
@@ -174,8 +298,12 @@ export default function PollBoardPage() {
                         className={
                             styles.refresh
                         }
-                        onClick={loadPolls}
-                        disabled={loading}
+                        onClick={
+                            loadPolls
+                        }
+                        disabled={
+                            loading
+                        }
                     >
                         {loading
                             ? 'Atualizando...'
@@ -188,36 +316,47 @@ export default function PollBoardPage() {
                         styles.filters
                     }
                 >
-                    {filters.map((filter) => (
-                        <button
-                            key={filter.id}
-                            type="button"
-                            className={`${styles.filter} ${
-                                activeFilter
-                                === filter.id
-                                    ? styles.filterActive
-                                    : ''
-                            }`}
-                            onClick={() =>
-                                setActiveFilter(
-                                    filter.id,
-                                )
-                            }
-                        >
-                            {filter.label}
+                    {filters.map(
+                        (filter) => (
+                            <button
+                                key={
+                                    filter.id
+                                }
+                                type="button"
+                                className={`${styles.filter} ${
+                                    activeFilter
+                                    === filter.id
+                                        ? styles.filterActive
+                                        : ''
+                                }`}
+                                onClick={() =>
+                                    changeFilter(
+                                        filter,
+                                    )
+                                }
+                            >
+                                {
+                                    filter.label
+                                }
 
-                            {filter.id === 'open'
-                                && openCount > 0 && (
-                                    <span>
-                                        {openCount}
-                                    </span>
-                                )}
-                        </button>
-                    ))}
+                                {filter.id
+                                    === 'open'
+                                    && openCount
+                                        > 0 && (
+                                        <span>
+                                            {
+                                                openCount
+                                            }
+                                        </span>
+                                    )}
+                            </button>
+                        ),
+                    )}
                 </div>
 
                 {loading
-                    && polls.length === 0 && (
+                    && polls.length
+                        === 0 && (
                         <div
                             className={
                                 styles.state
@@ -230,29 +369,34 @@ export default function PollBoardPage() {
                             />
 
                             <strong>
-                                Carregando enquetes
+                                Carregando
+                                enquetes
                             </strong>
 
                             <span>
-                                Buscando as votações mais
+                                Buscando as
+                                votações mais
                                 recentes...
                             </span>
                         </div>
                     )}
 
-                {!loading && error && (
-                    <div
-                        className={
-                            styles.state
-                        }
-                    >
-                        <strong>
-                            Algo deu errado
-                        </strong>
+                {!loading
+                    && error && (
+                        <div
+                            className={
+                                styles.state
+                            }
+                        >
+                            <strong>
+                                Algo deu errado
+                            </strong>
 
-                        <span>{error}</span>
-                    </div>
-                )}
+                            <span>
+                                {error}
+                            </span>
+                        </div>
+                    )}
 
                 {!loading
                     && !error
@@ -272,19 +416,21 @@ export default function PollBoardPage() {
                             </div>
 
                             <strong>
-                                Nenhuma enquete nesta
-                                categoria
+                                Nenhuma enquete
+                                nesta categoria
                             </strong>
 
                             <span>
-                                Tente outro filtro ou
-                                crie uma nova votação.
+                                Tente outro
+                                filtro ou crie
+                                uma nova
+                                votação.
                             </span>
 
                             <button
                                 type="button"
-                                onClick={() =>
-                                    setModalOpen(true)
+                                onClick={
+                                    openBlankModal
                                 }
                             >
                                 Criar enquete
@@ -293,7 +439,8 @@ export default function PollBoardPage() {
                     )}
 
                 {!error
-                    && filteredPolls.length > 0 && (
+                    && filteredPolls.length
+                        > 0 && (
                         <div
                             className={
                                 styles.grid
@@ -305,7 +452,9 @@ export default function PollBoardPage() {
                                         key={
                                             poll.id
                                         }
-                                        poll={poll}
+                                        poll={
+                                            poll
+                                        }
                                     />
                                 ),
                             )}
@@ -313,13 +462,20 @@ export default function PollBoardPage() {
                     )}
             </section>
 
-            <CreatePollModal
-                open={modalOpen}
-                onClose={() =>
-                    setModalOpen(false)
-                }
-                onCreated={handleCreated}
-            />
+            {modalOpen && (
+                <CreatePollModal
+                    open
+                    onClose={
+                        closeModal
+                    }
+                    onCreated={
+                        handleCreated
+                    }
+                    initialSportsEvent={
+                        initialSportsEvent
+                    }
+                />
+            )}
         </main>
     );
 }

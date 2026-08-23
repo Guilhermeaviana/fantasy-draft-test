@@ -5,134 +5,13 @@
     );
 
     margin: 0 auto;
-    padding: 64px 0 100px;
-}
 
-.hero {
-    min-height: 280px;
-
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 70px;
-
-    padding-bottom: 56px;
-
-    border-bottom:
-        1px solid
-        var(--border-subtle);
-}
-
-.heroContent {
-    max-width: 720px;
-}
-
-.eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-
-    color: var(--accent-primary-hover);
-
-    font-size: 9px;
-    font-weight: 900;
-
-    letter-spacing: 0.15em;
-}
-
-.liveDot {
-    width: 6px;
-    height: 6px;
-
-    border-radius: 50%;
-
-    background: var(--live);
-
-    box-shadow:
-        0 0 9px
-        rgba(55, 231, 123, 0.65);
-}
-
-.hero h1 {
-    margin: 14px 0 15px;
-
-    color: var(--text-primary);
-
-    font-size:
-        clamp(42px, 5.4vw, 64px);
-
-    font-weight: 820;
-
-    line-height: 0.99;
-    letter-spacing: -0.055em;
-}
-
-.hero p {
-    max-width: 610px;
-
-    margin: 0;
-
-    color: var(--text-secondary);
-
-    font-size: 15px;
-    line-height: 1.7;
-}
-
-.createButton {
-    min-height: 48px;
-
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 9px;
-
-    flex-shrink: 0;
-
-    padding: 0 20px;
-
-    border: 1px solid
-        rgba(55, 231, 123, 0.18);
-
-    border-radius: var(--radius-md);
-
-    background:
-        linear-gradient(
-            135deg,
-            #39e681,
-            #2dd770
-        );
-
-    color: #041109;
-
-    box-shadow:
-        0 12px 35px
-        rgba(55, 231, 123, 0.13);
-
-    cursor: pointer;
-
-    font-size: 12px;
-    font-weight: 900;
-
-    transition:
-        transform 160ms ease,
-        box-shadow 160ms ease;
-}
-
-.createButton span {
-    font-size: 18px;
-    font-weight: 600;
-}
-
-.createButton:hover {
-    transform: translateY(-2px);
-
-    box-shadow:
-        0 18px 42px
-        rgba(55, 231, 123, 0.19);
+    padding:
+        24px 0 100px;
 }
 
 .pollSection {
-    padding-top: 46px;
+    padding-top: 54px;
 }
 
 .toolbar {
@@ -192,7 +71,8 @@
     font-size: 10px;
     font-weight: 700;
 
-    transition: color 160ms ease;
+    transition:
+        color 160ms ease;
 }
 
 .refresh:hover:not(:disabled) {
@@ -223,7 +103,8 @@
     border:
         1px solid transparent;
 
-    border-radius: var(--radius-sm);
+    border-radius:
+        var(--radius-sm);
 
     background: transparent;
 
@@ -305,7 +186,10 @@
         var(--radius-lg);
 
     background:
-        rgba(11, 19, 36, 0.5);
+        rgba(11, 19, 36, 0.52);
+
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
 
     text-align: center;
 }
@@ -373,7 +257,8 @@
     background:
         var(--accent-primary-soft);
 
-    color: var(--accent-primary-hover);
+    color:
+        var(--accent-primary-hover);
 
     font-size: 18px;
     font-weight: 900;
@@ -399,6 +284,16 @@
 
     font-size: 10px;
     font-weight: 800;
+
+    transition:
+        transform 160ms ease,
+        opacity 160ms ease;
+}
+
+.empty button:hover {
+    transform: translateY(-1px);
+
+    opacity: 0.94;
 }
 
 @media (
@@ -407,12 +302,19 @@
     .loader {
         animation: none;
     }
+
+    .empty button {
+        transition: none;
+    }
 }
 
 @media (max-width: 950px) {
     .grid {
         grid-template-columns:
-            repeat(2, minmax(0, 1fr));
+            repeat(
+                2,
+                minmax(0, 1fr)
+            );
     }
 }
 
@@ -424,23 +326,12 @@
                 calc(100% - 28px)
             );
 
-        padding-top: 42px;
+        padding:
+            18px 0 80px;
     }
 
-    .hero {
-        min-height: auto;
-
-        align-items: flex-start;
-        flex-direction: column;
-
-        gap: 28px;
-
-        padding-bottom: 42px;
-    }
-
-    .hero h1 {
-        font-size:
-            clamp(39px, 13vw, 56px);
+    .pollSection {
+        padding-top: 44px;
     }
 
     .toolbar {
@@ -455,7 +346,14 @@
 
     .filters {
         overflow-x: auto;
+
         padding-bottom: 4px;
+
+        scrollbar-width: none;
+    }
+
+    .filters::-webkit-scrollbar {
+        display: none;
     }
 
     .filter {

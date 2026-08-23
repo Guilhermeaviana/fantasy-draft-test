@@ -1,11 +1,33 @@
 import {
     Link,
-    NavLink,
+    useLocation,
 } from 'react-router-dom';
 
 import styles from './AppHeader.module.css';
 
 export default function AppHeader() {
+    const location = useLocation();
+
+    const isLobby =
+        location.pathname === '/'
+        && location.hash !== '#live-polls'
+        && location.hash !== '#closed-polls';
+
+    const isOpenPolls =
+        location.pathname === '/'
+        && location.hash === '#live-polls';
+
+    const isClosedPolls =
+        location.pathname === '/'
+        && location.hash === '#closed-polls';
+
+    const navClassName = (active) =>
+        `${styles.navItem} ${
+            active
+                ? styles.navItemActive
+                : ''
+        }`;
+
     return (
         <header className={styles.header}>
             <div className={styles.inner}>
@@ -15,11 +37,19 @@ export default function AppHeader() {
                         className={styles.brand}
                         aria-label="FantasyDraft Live Polls"
                     >
-                        <div className={styles.brandMark}>
+                        <div
+                            className={
+                                styles.brandMark
+                            }
+                        >
                             <span>F</span>
                         </div>
 
-                        <div className={styles.brandText}>
+                        <div
+                            className={
+                                styles.brandText
+                            }
+                        >
                             <strong>
                                 FantasyDraft
                             </strong>
@@ -37,42 +67,37 @@ export default function AppHeader() {
                     />
 
                     <nav
-                        className={styles.navigation}
+                        className={
+                            styles.navigation
+                        }
                         aria-label="Navegação principal"
                     >
-                        <NavLink
+                        <Link
                             to="/"
-                            end
-                            className={({
-                                isActive,
-                            }) =>
-                                `${styles.navItem} ${
-                                    isActive
-                                        ? styles.navItemActive
-                                        : ''
-                                }`
-                            }
+                            className={navClassName(
+                                isLobby,
+                            )}
                         >
                             Lobby
-                        </NavLink>
+                        </Link>
 
-                        <a
-                            href="/#live-polls"
-                            className={
-                                styles.navItem
-                            }
+                        <Link
+                            to="/#live-polls"
+                            className={navClassName(
+                                isOpenPolls,
+                            )}
                         >
                             Em votação
-                        </a>
+                        </Link>
 
-                        <a
-                            href="/#closed-polls"
-                            className={
-                                styles.navItem
-                            }
+                        <Link
+                            to="/#closed-polls"
+                            className={navClassName(
+                                isClosedPolls,
+                            )}
                         >
                             Encerradas
-                        </a>
+                        </Link>
                     </nav>
                 </div>
 
