@@ -78,6 +78,17 @@ function formatEventTime(value) {
     }).format(date);
 }
 
+function getSportLabel(sport) {
+    const labels = {
+        Soccer: 'FUTEBOL',
+        Baseball: 'BASEBALL',
+        Basketball: 'BASQUETE',
+    };
+
+    return labels[sport]
+        ?? String(sport ?? 'ESPORTE').toUpperCase();
+}
+
 function getEventStatusLabel(status) {
     const labels = {
         scheduled: 'AGENDADO',
@@ -177,7 +188,7 @@ function SportsEventHero({ sportsEvent }) {
             <div className={styles.sportsHeroMeta}>
                 <div>
                     <span className={styles.sportLabel}>
-                        {sportsEvent.sport}
+                        {getSportLabel(sportsEvent.sport)}
                     </span>
 
                     <strong>

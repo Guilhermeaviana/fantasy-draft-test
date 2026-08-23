@@ -39,13 +39,26 @@ function formatEventDate(value) {
         parts.find((part) => part.type === type)?.value ?? '';
 
     const day = getPart('day');
+
     const month = getPart('month')
         .replace('.', '')
         .toUpperCase();
+
     const hour = getPart('hour');
     const minute = getPart('minute');
 
     return `${day} ${month} · ${hour}:${minute}`;
+}
+
+function getSportLabel(sport) {
+    const labels = {
+        Soccer: 'FUTEBOL',
+        Baseball: 'BASEBALL',
+        Basketball: 'BASQUETE',
+    };
+
+    return labels[sport]
+        ?? String(sport ?? 'ESPORTE').toUpperCase();
 }
 
 function getEventStatusLabel(status) {
@@ -58,7 +71,8 @@ function getEventStatusLabel(status) {
         canceled: 'CANCELADO',
     };
 
-    return labels[status] ?? String(status ?? 'AGENDADO').toUpperCase();
+    return labels[status]
+        ?? String(status ?? 'AGENDADO').toUpperCase();
 }
 
 function getEventStatusClass(status) {
@@ -91,7 +105,10 @@ function getInitials(name) {
         .toUpperCase();
 }
 
-function TeamLogo({ name, logo }) {
+function TeamLogo({
+    name,
+    logo,
+}) {
     const [failed, setFailed] = useState(false);
 
     if (logo && !failed) {
@@ -112,9 +129,12 @@ function TeamLogo({ name, logo }) {
     );
 }
 
-function SportsMatchup({ sportsEvent }) {
+function SportsMatchup({
+    sportsEvent,
+}) {
     const home = sportsEvent.home_team;
     const away = sportsEvent.away_team;
+
     const hasScore =
         home?.score !== null
         && home?.score !== undefined
@@ -138,15 +158,21 @@ function SportsMatchup({ sportsEvent }) {
                 {hasScore ? (
                     <strong className={styles.score}>
                         {home.score}
+
                         <span>:</span>
+
                         {away.score}
                     </strong>
                 ) : (
-                    <span className={styles.versus}>VS</span>
+                    <span className={styles.versus}>
+                        VS
+                    </span>
                 )}
             </div>
 
-            <div className={`${styles.team} ${styles.teamAway}`}>
+            <div
+                className={`${styles.team} ${styles.teamAway}`}
+            >
                 <TeamLogo
                     name={away?.name}
                     logo={away?.logo}
@@ -160,13 +186,19 @@ function SportsMatchup({ sportsEvent }) {
     );
 }
 
-export default function PollCard({ poll }) {
+export default function PollCard({
+    poll,
+}) {
     const actionLabel = getActionLabel(poll);
+
     const sportsEvent = poll.sports_event;
 
-    const visibleOptions = poll.options.slice(0, 3);
+    const visibleOptions =
+        poll.options.slice(0, 3);
+
     const hiddenOptions = Math.max(
-        poll.options.length - visibleOptions.length,
+        poll.options.length
+        - visibleOptions.length,
         0,
     );
 
@@ -174,16 +206,22 @@ export default function PollCard({ poll }) {
         <Link
             to={`/polls/${poll.id}`}
             className={`${styles.card} ${
-                sportsEvent ? styles.sportsCard : ''
+                sportsEvent
+                    ? styles.sportsCard
+                    : ''
             }`}
         >
             <div className={styles.glow} />
 
             <div className={styles.header}>
-                <StatusBadge status={poll.status} />
+                <StatusBadge
+                    status={poll.status}
+                />
 
                 <div className={styles.metric}>
-                    <strong>{poll.total_votes}</strong>
+                    <strong>
+                        {poll.total_votes}
+                    </strong>
 
                     <span>
                         {poll.total_votes === 1
@@ -194,15 +232,33 @@ export default function PollCard({ poll }) {
             </div>
 
             {sportsEvent ? (
-                <div className={styles.sportsContent}>
-                    <div className={styles.eventMeta}>
+                <div
+                    className={
+                        styles.sportsContent
+                    }
+                >
+                    <div
+                        className={
+                            styles.eventMeta
+                        }
+                    >
                         <div>
-                            <span className={styles.league}>
+                            <span
+                                className={
+                                    styles.league
+                                }
+                            >
                                 {sportsEvent.league
-                                    ?? sportsEvent.sport}
+                                    ?? getSportLabel(
+                                        sportsEvent.sport,
+                                    )}
                             </span>
 
-                            <span className={styles.eventDate}>
+                            <span
+                                className={
+                                    styles.eventDate
+                                }
+                            >
                                 {formatEventDate(
                                     sportsEvent.starts_at,
                                 )}
@@ -220,33 +276,72 @@ export default function PollCard({ poll }) {
                         </span>
                     </div>
 
-                    <SportsMatchup sportsEvent={sportsEvent} />
+                    <SportsMatchup
+                        sportsEvent={
+                            sportsEvent
+                        }
+                    />
 
-                    <div className={styles.sportsQuestion}>
-                        <span>ENQUETE DA PARTIDA</span>
-                        <h3>{poll.question}</h3>
+                    <div
+                        className={
+                            styles.sportsQuestion
+                        }
+                    >
+                        <span>
+                            ENQUETE DA PARTIDA
+                        </span>
+
+                        <h3>
+                            {poll.question}
+                        </h3>
                     </div>
                 </div>
             ) : (
-                <div className={styles.content}>
-                    <span className={styles.category}>
+                <div
+                    className={
+                        styles.content
+                    }
+                >
+                    <span
+                        className={
+                            styles.category
+                        }
+                    >
                         LIVE POLL
                     </span>
 
-                    <h3>{poll.question}</h3>
+                    <h3>
+                        {poll.question}
+                    </h3>
 
-                    <div className={styles.options}>
-                        {visibleOptions.map((option) => (
-                            <span
-                                key={option.id}
-                                className={styles.optionChip}
-                            >
-                                {option.label}
-                            </span>
-                        ))}
+                    <div
+                        className={
+                            styles.options
+                        }
+                    >
+                        {visibleOptions.map(
+                            (option) => (
+                                <span
+                                    key={
+                                        option.id
+                                    }
+                                    className={
+                                        styles.optionChip
+                                    }
+                                >
+                                    {
+                                        option.label
+                                    }
+                                </span>
+                            ),
+                        )}
 
                         {hiddenOptions > 0 && (
-                            <span className={styles.moreOptions}>
+                            <span
+                                className={
+                                    styles.moreOptions
+                                }
+                            >
                                 +{hiddenOptions}
                             </span>
                         )}
@@ -258,6 +353,7 @@ export default function PollCard({ poll }) {
                 <div className={styles.meta}>
                     <span>
                         {poll.options.length}{' '}
+
                         {poll.options.length === 1
                             ? 'opção'
                             : 'opções'}
@@ -265,9 +361,17 @@ export default function PollCard({ poll }) {
 
                     {poll.has_voted && (
                         <>
-                            <span className={styles.separator} />
+                            <span
+                                className={
+                                    styles.separator
+                                }
+                            />
 
-                            <span className={styles.voted}>
+                            <span
+                                className={
+                                    styles.voted
+                                }
+                            >
                                 VOTO REGISTRADO
                             </span>
                         </>
@@ -277,7 +381,13 @@ export default function PollCard({ poll }) {
                 <span className={styles.action}>
                     {actionLabel}
 
-                    <span className={styles.arrow}>→</span>
+                    <span
+                        className={
+                            styles.arrow
+                        }
+                    >
+                        →
+                    </span>
                 </span>
             </div>
         </Link>
